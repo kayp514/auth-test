@@ -11,7 +11,7 @@ export default function Home() {
   console.log('userId', userId);
   return (
     <div>
-      <h1>Home</h1>
+      <h1>Home, Home</h1>
     </div>
   );
 }
