@@ -1,13 +1,15 @@
 'use client'
 
 import { useAuth } from "@tern-secure/nextjs";
+import { redirect } from "next/navigation";
 
 export default function Home() {
   const { userId, isSignedIn } = useAuth();
 
   if(!isSignedIn){
-    return <h1>Not signed in</h1>
+    redirect('/sign-in');
   }
+
   console.log('userId', userId);
   return (
     <div>
