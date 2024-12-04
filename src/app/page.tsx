@@ -10,7 +10,6 @@ export default function Home() {
     redirect('/sign-in');
   }
 
-  console.log('userId', userId);
   return (
     <div>
       <h1>Home, {userId}</h1>
