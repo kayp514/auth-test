@@ -10,9 +10,15 @@ export default function Home() {
     redirect('/sign-in');
   }
 
+  const handleDashboard = () => {
+    redirect('/dashboard');
+  }
+
+
   return (
     <div>
       <h1>Home, {userId}</h1>
+      <button className="bg-fuchsia-600" onClick={handleDashboard}>Dashboard</button>
     </div>
   );
 }
