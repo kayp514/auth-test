@@ -1,14 +1,11 @@
 'use client'
 
-import { useAuth } from "@tern-secure/nextjs";
+import { useAuth} from "@tern-secure/nextjs";
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  const { userId, isSignedIn } = useAuth();
+  const  { user, isLoaded, isAuthenticated }  = useAuth();
 
-  if(!isSignedIn){
-    redirect('/sign-in');
-  }
 
   const handleDashboard = () => {
     redirect('/dashboard');
@@ -17,7 +14,7 @@ export default function Home() {
 
   return (
     <div>
-      <h1>Home, {userId}</h1>
+      <h1>Home, {user?.email}</h1>
       <button className="bg-fuchsia-600" onClick={handleDashboard}>Dashboard</button>
     </div>
   );
