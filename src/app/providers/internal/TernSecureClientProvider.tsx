@@ -81,7 +81,7 @@ export function TernSecureClientProvider({
     } 
     handleSignOut(new Error('User is not valid'));
     return { isValid: false, token: null };
-  }, [authState.token, handleSignOut]);
+  }, [authState.token]);
 
   useEffect(() => {
     let unsubscribeAuthState: () => void;
