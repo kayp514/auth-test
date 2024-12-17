@@ -1,5 +1,5 @@
 import { TernSecureAuth } from '../providers/utils/client-init'
-import { signInWithEmailAndPassword, getRedirectResult, GoogleAuthProvider, signInWithRedirect } from 'firebase/auth'
+import { signInWithEmailAndPassword, getRedirectResult, GoogleAuthProvider, OAuthProvider, signInWithRedirect } from 'firebase/auth'
 import { createSessionCookie } from '../providers/server/sessionTernSecure'
 
 
@@ -42,10 +42,9 @@ export async function signInWithRedirectGoogle() {
 
 export async function signInWithMicrosoft() {
   const auth = TernSecureAuth()
-  const provider = new GoogleAuthProvider()
+  const provider = new OAuthProvider('microsoft.com')
   provider.setCustomParameters({
-    'login_hint': 'user@example.com',
-    'prompt': 'select_account'
+    prompt: 'consent'
   })
 
   try {
