@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { TernSecureProvider } from "@tern-secure/nextjs";
+import { TernSecureProvider } from "./providers/TernSecureProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

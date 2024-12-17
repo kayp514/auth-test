@@ -1,11 +1,20 @@
 'use client'
 
 import { redirect } from "next/navigation";
-import { useAuth } from "@tern-secure/nextjs";
+import { useAuth } from "../providers/hooks/useAuth";
+
 
 
 export default function Dashboard() {
-const {  user } = useAuth();
+const {  user, isLoaded, isAuthenticated } = useAuth();
+
+    if (!isLoaded) {
+        return <div>Loading...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return <div>You are not authenticated.</div>;
+    }
 
 
     const handleHome = () => {
