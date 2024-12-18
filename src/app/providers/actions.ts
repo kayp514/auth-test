@@ -27,7 +27,11 @@ export async function signInWithRedirectGoogle() {
   const provider = new GoogleAuthProvider()
   provider.setCustomParameters({
     login_hint: 'user@example.com',
-    prompt: 'select_account'
+    prompt: 'select_account',
+    redirect_uri: 'https://auth-test-one-chi.vercel.app/auth/callback',
+    redirectUrl: 'https://auth-test-one-chi.vercel.app/auth/callback',
+    context_uri: 'https://auth-test-one-chi.vercel.app/auth/callback',
+    continue_uri: 'https://auth-test-one-chi.vercel.app/auth/callback'
   })
 
   try {
