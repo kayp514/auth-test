@@ -35,7 +35,7 @@ export function SignIn({
   customStyles = {}
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
-  const [checkingRedirect, setCheckingRedirect] = useState(true)
+  const [checkingRedirect, setCheckingRedirect] = useState(false)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -47,16 +47,17 @@ export function SignIn({
         const result = await getRedirectResult(ternSecureAuth)
         console.log('Redirect result:', result)
         if (result) {
+          setCheckingRedirect(true)
           router.push('/')
         }
       } catch (error: any) {
         console.error('Redirect error:', error)
         setError(error.message || 'Failed to complete sign-in')
         onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
-      } finally {
-        setCheckingRedirect(false)
-      }
+    } finally {
+      setCheckingRedirect(false)
     }
+  }
 
     checkRedirect()
   }, [ternSecureAuth, router, onError])
