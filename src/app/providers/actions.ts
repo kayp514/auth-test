@@ -65,6 +65,7 @@ export async function handleAuthRedirectResult() {
   const auth = TernSecureAuth()
   try {
     const result = await getRedirectResult(auth)
+    console.log('redirect result', result)
     if (result) {
       const user = result.user
       return { success: true, user }
