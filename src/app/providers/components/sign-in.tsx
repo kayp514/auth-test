@@ -35,6 +35,7 @@ export function SignIn({
   customStyles = {}
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
+  const [checkingRedirect, setCheckingRedirect] = useState(true)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -52,6 +53,8 @@ export function SignIn({
         console.error('Redirect error:', error)
         setError(error.message || 'Failed to complete sign-in')
         onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
+      } finally {
+        setCheckingRedirect(false)
       }
     }
 
@@ -91,6 +94,17 @@ export function SignIn({
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingRedirect) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
