@@ -31,7 +31,7 @@ export async function createSessionCookie(idToken: string) {
           path: '/',
       });
       return { success: true, message: 'Session created' };
-  } catch (error) {
+  } catch {
       return { success: false, message: 'Failed to create session' };
   }
 }
@@ -116,16 +116,32 @@ export async function setServerSession(token: string) {
   }
   
 
-  export async function verifyTernSessionCookie(session: string): Promise<{ valid: boolean; uid?: any; error?: any }>{
+  export async function verifyTernSessionCookie(session: string): Promise<{ valid: boolean; uid?: string; error?: string }>{
     try {
-      const res = await adminAuth.verifySessionCookie(session, true);
+      const res = await adminAuth.verifySessionCookie(session);
       if (res) {
         return { valid: true, uid: res.uid };
       } else {
         return { valid: false, error: 'Invalid session'};
       }
     } catch (error) {
-      return {error: error, valid: false}
+      if (error instanceof Error) {
+        const firebaseError = error as FirebaseAuthError;
+        if (error.name === 'FirebaseAuthError') {
+          // Handle specific Firebase Auth errors
+          switch (firebaseError.code) {
+            case 'auth/id-token-expired':
+              return { valid: false, error: 'Token has expired' };
+            case 'auth/id-token-revoked':
+              return { valid: false, error: 'Token has been revoked' };
+            case 'auth/user-disabled':
+              return { valid: false, error: 'User account has been disabled' };
+            default:
+              return { valid: false, error: 'Invalid token' };
+          }
+        }
+      }
+      return {error: 'Error verifying token', valid: false}
     }
   }
 

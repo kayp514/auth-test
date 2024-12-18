@@ -9,17 +9,16 @@ export const TernSecureUser = (): User | null => {
 }
 
 export interface TernSecureState {
-  user: User | null
   userId: string | null
   isLoaded: boolean
   error: Error | null
   isValid: boolean
-  token: any | null
+
 }
 
 export interface TernSecureCtxValue extends TernSecureState {
   //checkTokenValidity: () => Promise<void>;
-  signOut: (error?: Error) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 export const TernSecureCtx = createContext<TernSecureCtxValue | null>(null)

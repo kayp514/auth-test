@@ -65,8 +65,8 @@ export async function handleAuthRedirectResult() {
     } else {
       return { success: false, error: 'No redirect result' }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error handling auth redirect result:', error)
-    return { success: false, error: error.message || 'Failed to handle auth redirect', code: error.code }
+    return { success: false, error: 'Failed to handle auth redirect' }
   }
 }

@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
-import { getAuth, getRedirectResult } from 'firebase/auth'
+import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 
 export interface SignInProps {
@@ -35,7 +35,6 @@ export function SignIn({
   customStyles = {}
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
-  const [checkingRedirect, setCheckingRedirect] = useState(true)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,14 +48,13 @@ export function SignIn({
       const checkRedirect = async () => {
         try {
           const result = await getRedirectResult(ternSecureAuth)
-          console.log('Redirect result:', result)
           if (result) {
             router.push('/')
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Redirect error:', error)
-          setError(error.message || 'Failed to complete sign-in')
-          onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
+          setError(error instanceof Error ? error.message : 'Failed to complete sign-in');
+          onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'));
           // Remove the redirect parameter on error
           const newUrl = new URL(window.location.href)
           newUrl.searchParams.delete('signInRedirect')
@@ -66,7 +64,7 @@ export function SignIn({
 
       checkRedirect()
     }
-  }, [ternSecureAuth, router, onError, searchParams])
+  }, [router, onError, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -209,7 +207,7 @@ export function SignIn({
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">
-          Don't have an account?{' '}
+        Don&apos;t have an account?{' '}
           <a href="#" className="text-primary hover:underline">
             Sign up
           </a>

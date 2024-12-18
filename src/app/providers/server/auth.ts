@@ -17,7 +17,7 @@ export async function auth(): Promise<AuthResult> {
       const sessionResult = await verifyTernSessionCookie(sessionCookie);
       if (sessionResult.valid) {
         return {
-          userId: sessionResult.uid,
+          userId: sessionResult.uid ?? null,
           token: sessionCookie,
           error: null
         };

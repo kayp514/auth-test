@@ -10,7 +10,6 @@ export function useAuth() {
     isLoaded,
     error,
     isValid,
-    token,
     signOut
   } = useTernSecure('useAuth')
 
@@ -23,7 +22,6 @@ export function useAuth() {
     isLoaded,
     error,
     isAuthenticated: isValid,
-    token,
     signOut
   }
 }

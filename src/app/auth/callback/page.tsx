@@ -16,8 +16,8 @@ export default function AuthCallback() {
           router.push('/')
         } else {
           console.error('Auth error:', result.error)
-          const errorMessage = encodeURIComponent(result.error)
-          router.push(`/sign-in?error=${errorMessage}`)
+          //const errorMessage = encodeURIComponent(result.error)
+          //outer.push(`/sign-in?error=${errorMessage}`)
         }
       } catch (err) {
         console.error('Callback error:', err)
