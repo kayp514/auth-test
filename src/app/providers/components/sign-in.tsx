@@ -11,6 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
+import { getAuth, getRedirectResult } from 'firebase/auth'
+import { ternSecureAuth } from '../utils/client-init'
 
 export interface SignInProps {
   onError?: (error: Error) => void
@@ -37,14 +39,24 @@ export function SignIn({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
-    const errorParam = searchParams.get('error')
-    if (errorParam) {
-      setError(decodeURIComponent(errorParam))
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(ternSecureAuth)
+        console.log('Redirect result:', result)
+        if (result) {
+          router.push('/')
+        }
+      } catch (error: any) {
+        console.error('Redirect error:', error)
+        setError(error.message || 'Failed to complete sign-in')
+        onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
+      }
     }
-  }, [searchParams])
+
+    checkRedirect()
+  }, [ternSecureAuth, router, onError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

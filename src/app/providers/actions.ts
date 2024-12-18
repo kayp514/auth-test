@@ -1,4 +1,4 @@
-import { TernSecureAuth } from '../providers/utils/client-init'
+import { TernSecureAuth, ternSecureAuth } from '../providers/utils/client-init'
 import { signInWithEmailAndPassword, getRedirectResult, GoogleAuthProvider, OAuthProvider, signInWithRedirect } from 'firebase/auth'
 import { createSessionCookie } from '../providers/server/sessionTernSecure'
 
@@ -23,19 +23,14 @@ export async function signInWithEmail(email: string, password: string){
 }
 
 export async function signInWithRedirectGoogle() {
-  const auth = TernSecureAuth()
   const provider = new GoogleAuthProvider()
   provider.setCustomParameters({
     login_hint: 'user@example.com',
     prompt: 'select_account',
-    redirect_uri: 'https://auth-test-one-chi.vercel.app/auth/callback',
-    redirectUrl: 'https://auth-test-one-chi.vercel.app/auth/callback',
-    context_uri: 'https://auth-test-one-chi.vercel.app/auth/callback',
-    continue_uri: 'https://auth-test-one-chi.vercel.app/auth/callback'
   })
 
   try {
-    await signInWithRedirect(auth, provider)
+    await signInWithRedirect(ternSecureAuth, provider)
     return { success: true, message: 'Redirect initiated' }
   } catch (error) {
     console.error('Error during Google sign-in:', error)
@@ -45,14 +40,13 @@ export async function signInWithRedirectGoogle() {
 
 
 export async function signInWithMicrosoft() {
-  const auth = TernSecureAuth()
   const provider = new OAuthProvider('microsoft.com')
   provider.setCustomParameters({
     prompt: 'consent'
   })
 
   try {
-    await signInWithRedirect(auth, provider)
+    await signInWithRedirect(ternSecureAuth, provider)
     return { success: true, message: 'Redirect initiated' }
   } catch (error) {
     console.error('Error during Google sign-in:', error)
@@ -62,9 +56,8 @@ export async function signInWithMicrosoft() {
 
 
 export async function handleAuthRedirectResult() {
-  const auth = TernSecureAuth()
   try {
-    const result = await getRedirectResult(auth)
+    const result = await getRedirectResult(ternSecureAuth)
     console.log('redirect result', result)
     if (result) {
       const user = result.user
