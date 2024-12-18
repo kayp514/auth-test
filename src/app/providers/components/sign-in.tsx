@@ -35,32 +35,38 @@ export function SignIn({
   customStyles = {}
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
-  const [checkingRedirect, setCheckingRedirect] = useState(false)
+  const [checkingRedirect, setCheckingRedirect] = useState(true)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const searchParams = useSearchParams()
   const router = useRouter()
 
   useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(ternSecureAuth)
-        console.log('Redirect result:', result)
-        if (result) {
-          setCheckingRedirect(true)
-          router.push('/')
+    const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
+    
+    if (isRedirectSignIn) {
+      const checkRedirect = async () => {
+        try {
+          const result = await getRedirectResult(ternSecureAuth)
+          console.log('Redirect result:', result)
+          if (result) {
+            router.push('/')
+          }
+        } catch (error: any) {
+          console.error('Redirect error:', error)
+          setError(error.message || 'Failed to complete sign-in')
+          onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
+          // Remove the redirect parameter on error
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('signInRedirect')
+          window.history.replaceState({}, '', newUrl.toString())
         }
-      } catch (error: any) {
-        console.error('Redirect error:', error)
-        setError(error.message || 'Failed to complete sign-in')
-        onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'))
-    } finally {
-      setCheckingRedirect(false)
-    }
-  }
+      }
 
-    checkRedirect()
-  }, [ternSecureAuth, router, onError])
+      checkRedirect()
+    }
+  }, [ternSecureAuth, router, onError, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,22 +88,26 @@ export function SignIn({
   const handleSocialSignIn = async (provider: 'google' | 'microsoft') => {
     setLoading(true)
     try {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.set('signInRedirect', 'true')
+      window.history.replaceState({}, '', currentUrl.toString())
+
       const result = provider === 'google' ? await signInWithRedirectGoogle() : await signInWithMicrosoft()
-      if (result.success) {
-        console.log(result.message)
-      } else {
+      if (!result.success) {
         throw new Error(result.error)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
       setError(errorMessage)
       onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
-    } finally {
-      setLoading(false)
+
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('signInRedirect')
+      window.history.replaceState({}, '', newUrl.toString())
     }
   }
 
-  if (checkingRedirect) {
+  if (searchParams.get('signInRedirect') === 'true') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
