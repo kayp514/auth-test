@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
 import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
+import { createSessionCookie } from '../server/sessionTernSecure'
 
 export interface SignInProps {
   onError?: (error: Error) => void
@@ -49,6 +50,11 @@ export function SignIn({
         try {
           const result = await getRedirectResult(ternSecureAuth)
           if (result) {
+            const idToken = await result.user.getIdToken()
+            const session = await createSessionCookie(idToken)
+            if (!session.success) {
+              throw new Error('Failed to create session')
+            }
             router.push('/')
           }
         } catch (error: unknown) {
