@@ -25,9 +25,9 @@ export async function signInWithEmail(email: string, password: string){
 export async function signInWithRedirectGoogle() {
   const provider = new GoogleAuthProvider()
   provider.setCustomParameters({
+    access_type: 'offline',
     login_hint: 'user@example.com',
-    prompt: 'select_account',
-    redirectUrl: 'https://auth-test-one-chi.vercel.app/auth/callback'
+    prompt: 'select_account'
   })
 
   try {
