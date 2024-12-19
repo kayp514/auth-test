@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { TernSecureProvider } from "./providers/TernSecureProvider";
+//import { TernSecureProvider } from "@tern-secure/nextjs";
+import { SignOut } from "./providers/components/sign-out";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -29,7 +31,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TernSecureProvider>{children}</TernSecureProvider>
+        <TernSecureProvider>
+          {children}
+          <SignOut />
+        </TernSecureProvider>
       </body>
     </html>
   );

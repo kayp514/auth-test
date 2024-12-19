@@ -145,6 +145,32 @@ export async function setServerSession(token: string) {
     }
   }
 
+  export async function clearSessionCookie() {
+    const cookieStore = await cookies()
+    
+    cookieStore.delete('_session_cookie')
+    cookieStore.delete('_session_token')
+    cookieStore.delete('_session')
+  
+    try {
+      // Verify if there's an active session before revoking
+      const sessionCookie = cookieStore.get('_session_cookie')?.value
+      if (sessionCookie) {
+        // Get the decoded claims to get the user's ID
+        const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie)
+        
+        // Revoke all sessions for the user
+        await adminAuth.revokeRefreshTokens(decodedClaims.uid)
+      }
+      
+      return { success: true, message: 'Session cleared successfully' }
+    } catch (error) {
+      console.error('Error clearing session:', error)
+      // Still return success even if revoking fails, as cookies are cleared
+      return { success: true, message: 'Session cookies cleared' }
+    }
+  }
+  
 
 
 /*
