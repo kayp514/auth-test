@@ -96,14 +96,15 @@ export function SignIn({
 
   const handleRedirectResult = useCallback(async () => {
     if (!isRedirectSignIn) return false
+    setCheckingRedirect(true)
     try {
-      console.log('Checking redirect result...');
-      console.log('Current hostname:', window.location.hostname);
-      console.log('Auth domain hostname:', authDomain);
+      //console.log('Checking redirect result...');
+      //console.log('Current hostname:', window.location.hostname);
+      //console.log('Auth domain hostname:', authDomain);
 
-    const isOnAuth = authDomain && 
-    window.location.hostname === authDomain.replace(/https?:\/\//, '');
-    console.log('Is on  AuthDomain:', isOnAuth);
+    //const isOnAuth = authDomain && 
+    //window.location.hostname === authDomain.replace(/https?:\/\//, '');
+    //console.log('Is on  AuthDomain:', isOnAuth);
 
 
       const result = await getRedirectResult(ternSecureAuth)

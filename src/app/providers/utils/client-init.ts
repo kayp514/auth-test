@@ -14,7 +14,7 @@ const config = {
   }
 
 // Initialize immediately
-const clientApp = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+const clientApp = getApps().length === 0 ? initializeApp(config, 'Auth-Test') : getApps()[0];
 export const ternSecureAuth = getAuth(clientApp);
 setPersistence(ternSecureAuth, browserSessionPersistence); //to change later user should be able to choose persistance
 const firestore = getFirestore(clientApp);
