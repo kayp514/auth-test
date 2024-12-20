@@ -119,9 +119,7 @@ export function SignIn({
         sessionStorage.removeItem('auth_redirect_url') 
         onSuccess?.()
         window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams)
-        return true
       }
-      return false
     } catch (err) {
       console.error('Redirect result error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
