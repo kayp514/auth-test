@@ -18,6 +18,12 @@ export interface Session {
     error: Error | null;
 }
 
+export interface UserStatus {
+  isValid: boolean
+  error?: string
+  userId?: string
+}
+
 export async function createSessionCookie(idToken: string) {
   try {
     const expiresIn = 60 * 60 * 24 * 5 * 1000;
@@ -168,6 +174,39 @@ export async function setServerSession(token: string) {
       console.error('Error clearing session:', error)
       // Still return success even if revoking fails, as cookies are cleared
       return { success: true, message: 'Session cookies cleared' }
+    }
+  }
+
+
+  export async function verifyUser(): Promise<UserStatus> {
+    try {
+      const cookieStore = await cookies()
+      const sessionCookie = cookieStore.get('_session_cookie')?.value
+  
+      if (!sessionCookie) {
+        return { isValid: false }
+      }
+  
+      // Verify the session cookie
+      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true)
+      
+      // Additional check to ensure user still exists and is not disabled
+      const user = await adminAuth.getUser(decodedClaims.uid)
+      
+      if (user.disabled) {
+        throw new Error('User account is disabled or email not verified')
+      }
+  
+      return {
+        isValid: true,
+        userId: user.uid
+      }
+    } catch (error) {
+      console.error('Error verifying user:', error)
+      return {
+        isValid: false,
+        error: error instanceof Error ? error.message : 'Failed to verify user'
+      }
     }
   }
   

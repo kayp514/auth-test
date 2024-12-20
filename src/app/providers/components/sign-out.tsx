@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { signOut } from 'firebase/auth'
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { ternSecureAuth } from '../utils/client-init'
@@ -11,6 +11,7 @@ type SignOutCustomProps = {
   children?: React.ReactNode
   onError?: (error: Error) => void
   onSignOutSuccess?: () => void
+  redirectPath?: string
 }
 
 type SignOutProps = Omit<ButtonProps, 'onClick'> & SignOutCustomProps
@@ -19,10 +20,12 @@ export function SignOut({
   children = 'Sign out', 
   onError,
   onSignOutSuccess,
+  redirectPath,
   ...buttonProps 
 }: SignOutProps) {
-  const router = useRouter()
+  const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(false)
+  const loginPath = process.env.NEXT_PUBLIC_LOGIN_PATH || '/sign-in'
 
   const handleSignOut = async () => {
     setIsLoading(true)
@@ -36,8 +39,25 @@ export function SignOut({
       // Call success callback if provided
       onSignOutSuccess?.()
       
-      // Redirect to sign-in page
-      router.push('/sign-in')
+      // Build the login URL with redirect
+      const redirectUrl = redirectPath || pathname
+      
+      // Ensure we're not redirecting to the login page itself
+      if (redirectUrl && !redirectUrl.startsWith(loginPath)) {
+        // Use URLSearchParams to properly encode the parameters
+        const searchParams = new URLSearchParams({
+          redirect_url: redirectUrl
+        }).toString()
+        
+        // Construct the full URL with encoded parameters
+        const fullLoginPath = `${loginPath}?${searchParams}`
+        
+        // Use window.location for a full page navigation that preserves the query parameters
+        window.location.href = fullLoginPath
+      } else {
+        // If no redirect or redirecting to login, just go to login
+        window.location.href = loginPath
+      }
     } catch (error) {
       console.error('Sign out error:', error)
       onError?.(error instanceof Error ? error : new Error('Failed to sign out'))

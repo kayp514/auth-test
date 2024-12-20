@@ -1,88 +1,132 @@
-"use client"
+'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { onAuthStateChanged, User } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
-import { onAuthStateChanged, User } from "firebase/auth"
-import { TernSecureCtx, TernSecureCtxValue, TernSecureState } from './TernSecureCtx'
-import { useRouter } from 'next/navigation'
+import { TernSecureState, TernSecureCtxValue, TernSecureCtx } from './TernSecureCtx'
+import { UserStatus } from '../server/sessionTernSecure'
+
+
 
 interface TernSecureClientProviderProps {
-  children: React.ReactNode;
-  onUserChanged?: (user: User | null) => Promise<void>;
-  loginPath?: string;
-  loadingComponent?: React.ReactNode;
+  children: React.ReactNode
+  initialUserStatus: UserStatus
+  loginPath?: string
 }
 
 export function TernSecureClientProvider({ 
-  children, 
-  loginPath = '/sign-in',
-  loadingComponent
+  children,
+  initialUserStatus,
+  loginPath = process.env.NEXT_PUBLIC_LOGIN_PATH || '/sign-in'
 }: TernSecureClientProviderProps) {
-  const auth = useMemo(() => ternSecureAuth, []);
-  const router = useRouter();
+  const auth = useMemo(() => ternSecureAuth, [])
+  const router = useRouter()
+  const pathname = usePathname()
+  
   const [authState, setAuthState] = useState<TernSecureState>(() => ({
-    userId: null,
-    isLoaded: false,
-    error: null,
-    isValid: false,
-  }));
+    userId: initialUserStatus.userId || null,
+    isLoaded: true,
+    error: initialUserStatus.error ? new Error(initialUserStatus.error) : null,
+    isValid: initialUserStatus.isValid,
+  }))
 
-  const handleSignOut = useCallback(async (error?: Error) => {
-    await auth.signOut();
-    setAuthState({
-      isLoaded: true,
-      userId: null,
-      error: error || null,
-      isValid: false,
-    });
-    router.push(loginPath);
-  }, [auth, router, loginPath]);
+  const handleSignOut = useCallback(async (redirectPath?: string) => {
+    try {
+      await auth.signOut()
+      setAuthState({
+        isLoaded: true,
+        userId: null,
+        error: null,
+        isValid: false,
+      })
 
-useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-      if (user) {
-        setAuthState({
-          isLoaded: true,
-          userId: user.uid,
-          isValid: true,
-          error: null
-        })
+      const redirectUrl = redirectPath || pathname
+
+      if (redirectUrl && !redirectUrl.startsWith(loginPath)) {
+        const searchParams = new URLSearchParams({
+          redirect_url: redirectUrl
+        }).toString()
+
+        const fullLoginPath = `${loginPath}?${searchParams}`
+        window.location.href = fullLoginPath
       } else {
-        setAuthState({
-          isLoaded: true,
-          userId: null,
-          isValid: false,
-          error: new Error('User is not authenticated')
-        })
-        router.push(loginPath);
+        window.location.href = loginPath
       }
-    }, (error) => {
-      handleSignOut(error instanceof Error ? error : new Error('Authentication error occurred'));
-    })
+    } catch (signOutError) {
+      console.error('Error during sign out:', signOutError)
+      setAuthState(prev => ({
+        ...prev,
+        error: signOutError instanceof Error ? signOutError : new Error('Failed to sign out'),
+      }))
+    }
+  }, [auth, pathname, loginPath])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (user: User | null) => {
+        try {
+          if (user) {
+            setAuthState({
+              isLoaded: true,
+              userId: user.uid,
+              isValid: true,
+              error: null
+            })
+          } else {
+            setAuthState({
+              isLoaded: true,
+              userId: null,
+              isValid: false,
+              error: new Error('User is not authenticated')
+            })
+
+
+            if (!pathname.startsWith(loginPath)) {
+              const searchParams = new URLSearchParams({
+                redirect_url: pathname
+              }).toString()
+
+              const fullLoginPath = `${loginPath}?${searchParams}`
+              window.location.href = fullLoginPath
+            }
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error)
+          handleSignOut()
+        }
+      },
+      (error) => {
+        console.error('Auth state change error:', error)
+        handleSignOut()
+      }
+    )
     
     return () => unsubscribe()
-  }, [auth, handleSignOut, router, loginPath])
+  }, [auth, handleSignOut, router, pathname, loginPath])
 
   const contextValue: TernSecureCtxValue = useMemo(() => ({
     ...authState,
     signOut: handleSignOut,
-  }), [authState, handleSignOut]);
+  }), [authState, handleSignOut])
 
   if (!authState.isLoaded) {
     return (
       <TernSecureCtx.Provider value={contextValue}>
-        {loadingComponent || (
-          <div aria-live="polite" aria-busy="true">
-            <span className="sr-only">Loading authentication state...</span>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+            <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
-        )}
+        </div>
       </TernSecureCtx.Provider>
-    );
+    )
   }
 
   return (
-      <TernSecureCtx.Provider value={contextValue}>
-       {children}
-      </TernSecureCtx.Provider>
+    <TernSecureCtx.Provider value={contextValue}>
+      {children}
+    </TernSecureCtx.Provider>
   )
 }
