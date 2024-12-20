@@ -16,6 +16,7 @@ import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct'
+import { auth } from '../server/auth'
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -95,19 +96,17 @@ export function SignIn({
 
   const handleRedirectResult = useCallback(async () => {
     if (!isRedirectSignIn) return false
-    setCheckingRedirect(true)
     try {
       console.log('Checking redirect result...');
-      const isAuthDomain = window.location.hostname === new URL(`https://${authDomain}`).hostname;
-      console.log('Is auth domain:', isAuthDomain);
       console.log('Current hostname:', window.location.hostname);
-      console.log('Auth domain hostname:', new URL(`https://${authDomain}`).hostname);
+      console.log('Auth domain hostname:', authDomain);
+
+    const isOnAuth = authDomain && 
+    window.location.hostname === authDomain.replace(/https?:\/\//, '');
+    console.log('Is on  AuthDomain:', isOnAuth);
+
 
       const result = await getRedirectResult(ternSecureAuth)
-      if(!result){
-        setError('No Result Found')
-        return false
-      }
       console.log('Redirect result:', result);
       if (result) {
         const idToken = await result.user.getIdToken()
@@ -134,27 +133,27 @@ export function SignIn({
     }
   }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError])
 
- //const REDIRECT_TIMEOUT = 5000;
+ const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
-    //let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
 
     if (isRedirectSignIn) {
       handleRedirectResult();
 
-      //timeoutId = setTimeout(() => {
-       // console.warn('Redirect check timed out');
-     //  setCheckingRedirect(false);
-     //   setError('Sign in took too long. Please try again.');
+      timeoutId = setTimeout(() => {
+        console.warn('Redirect check timed out');
+      setCheckingRedirect(false);
+      setError('Sign in took too long. Please try again.');
         
-    //  }, REDIRECT_TIMEOUT);
+    }, REDIRECT_TIMEOUT);
     }
 
-   // return () => {
-    //  if (timeoutId) {
-        //clearTimeout(timeoutId);
-    //  }
-   // };
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [handleRedirectResult, isRedirectSignIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
