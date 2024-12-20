@@ -107,7 +107,7 @@ export function SignIn({
 
 
       const result = await getRedirectResult(ternSecureAuth)
-      console.log('Redirect result:', result);
+      //console.log('Redirect result:', result);
       if (result) {
         const idToken = await result.user.getIdToken()
         const sessionResult = await createSessionCookie(idToken)
@@ -133,15 +133,15 @@ export function SignIn({
     }
   }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError])
 
- const REDIRECT_TIMEOUT = 5000;
+ //const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    //let timeoutId: NodeJS.Timeout;
 
     if (isRedirectSignIn) {
       handleRedirectResult();
 
-      timeoutId = setTimeout(() => {
+      /*timeoutId = setTimeout(() => {
         console.warn('Redirect check timed out');
       setCheckingRedirect(false);
       setError('Sign in took too long. Please try again.');
@@ -152,7 +152,7 @@ export function SignIn({
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
-      }
+      }*/
     };
   }, [handleRedirectResult, isRedirectSignIn])
 
