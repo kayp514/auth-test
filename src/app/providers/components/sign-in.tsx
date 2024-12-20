@@ -20,9 +20,6 @@ import { getValidRedirectUrl } from '../utils/construct'
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// Always use Firebase auth domain for auth flows
-const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-
 const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'http://localhost:3000';
 
 
@@ -97,94 +94,46 @@ export function SignIn({
 
 
   const handleRedirectResult = useCallback(async () => {
-    if (!isRedirectSignIn) return false;
-    setCheckingRedirect(true);
+    if (!isRedirectSignIn) return false
+    setCheckingRedirect(true)
     try {
       console.log('Checking redirect result...');
+      const isAuthDomain = window.location.hostname === new URL(`https://${authDomain}`).hostname;
+      console.log('Is auth domain:', isAuthDomain);
       console.log('Current hostname:', window.location.hostname);
-      console.log('Firebase Auth Domain:', firebaseAuthDomain);
+      console.log('Auth domain hostname:', new URL(`https://${authDomain}`).hostname);
 
-      // Check if we're on Firebase auth domain
-      const isOnFirebaseAuth = firebaseAuthDomain && 
-        window.location.hostname === firebaseAuthDomain.replace(/https?:\/\//, '');
-      console.log('Is on Firebase Auth:', isOnFirebaseAuth);
-
-      // Get redirect result regardless of domain
-      const result = await getRedirectResult(ternSecureAuth);
+      const result = await getRedirectResult(ternSecureAuth)
       console.log('Redirect result:', result);
-
       if (result) {
-        // We got a result, get the token
-        const idToken = await result.user.getIdToken(true);
-        console.log('Got ID token');
-
-        if (isOnFirebaseAuth) {
-          // Store token and return to localhost
-          const returnUrl = sessionStorage.getItem('auth_return_url');
-          if (returnUrl && returnUrl.includes('localhost')) {
-            sessionStorage.setItem('auth_temp_token', idToken);
-            console.log('Redirecting back to localhost:', returnUrl);
-            window.location.href = returnUrl;
-            return true;
-          }
-        } else {
-          // We're on localhost or production, create session
-          await handleAuthResult(result.user);
-          const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url');
-          sessionStorage.removeItem('auth_redirect_url');
-          onSuccess?.();
-          window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams);
-          return true;
+        const idToken = await result.user.getIdToken()
+        const sessionResult = await createSessionCookie(idToken)
+        if (!sessionResult.success) {
+          throw new Error('Failed to create session')
         }
-      } else if (!isOnFirebaseAuth) {
-        // No result, check for stored token on localhost
-        const tempToken = sessionStorage.getItem('auth_temp_token');
-        if (tempToken) {
-          console.log('Found stored token on localhost');
-          // Create session with stored token
-          const response = await fetch('/api/auth/handler', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ idToken: tempToken }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to create session');
-          }
-
-          // Clean up and redirect
-          sessionStorage.removeItem('auth_temp_token');
-          sessionStorage.removeItem('auth_return_url');
-          const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url');
-          sessionStorage.removeItem('auth_redirect_url');
-          onSuccess?.();
-          window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams);
-          return true;
-        }
+        const storedRedirectUrl = sessionStorage.getItem('auth_return_url')
+        sessionStorage.removeItem('auth_redirect_url') 
+        onSuccess?.()
+        window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams)
+        return true
       }
-
-      return false;
+      return false
     } catch (err) {
-      console.error('Redirect result error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
-      setError(errorMessage);
-      onError?.(err instanceof Error ? err : new Error(errorMessage));
-      // Clean up all storage
-      sessionStorage.removeItem('auth_redirect_url');
-      sessionStorage.removeItem('auth_return_url');
-      sessionStorage.removeItem('auth_temp_token');
-      return false;
+      console.error('Redirect result error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
+      setError(errorMessage)
+      onError?.(err instanceof Error ? err : new Error(errorMessage))
+      sessionStorage.removeItem('auth_redirect_url')
+      return false
     } finally {
-      setCheckingRedirect(false);
+      setCheckingRedirect(false)
     }
-  }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError]);
+  }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError])
 
-  const REDIRECT_TIMEOUT = 5000;
+ // const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    //let timeoutId: NodeJS.Timeout;
 
     if (isRedirectSignIn) {
       handleRedirectResult();
@@ -202,7 +151,7 @@ export function SignIn({
         clearTimeout(timeoutId);
       }
     };*/
-  }, [handleRedirectResult, isRedirectSignIn, getValidRedirectUrl])
+  }, [handleRedirectResult, isRedirectSignIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -223,55 +172,28 @@ export function SignIn({
   }
 
   const handleSocialSignIn = async (provider: 'google' | 'microsoft') => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const validRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams);
-      sessionStorage.setItem('auth_redirect_url', validRedirectUrl);
 
-      if (isLocalhost && firebaseAuthDomain) {
-        // Store the current URL for return journey
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('signInRedirect', 'true');
-        sessionStorage.setItem('auth_return_url', currentUrl.toString());
+      const validRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
+      sessionStorage.setItem('auth_redirect_url', validRedirectUrl)
 
-        // Redirect to Firebase auth domain first
-        const authUrl = new URL(`https://${firebaseAuthDomain.replace(/https?:\/\//, '')}`);
-        authUrl.pathname = currentUrl.pathname;
-        authUrl.search = currentUrl.search;
-        
-        console.log('Redirecting to Firebase Auth for sign-in:', authUrl.toString());
-        window.location.href = authUrl.toString();
-        return;
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.set('signInRedirect', 'true')
+      window.history.replaceState({}, '', currentUrl.toString())
+
+      const result = provider === 'google' ? await signInWithRedirectGoogle() : await signInWithMicrosoft()
+      if (!result.success) {
+        throw new Error(result.error)
       }
-
-      // We're either on Firebase auth domain or in production
-      let authProvider;
-      if (provider === 'google') {
-        const { GoogleAuthProvider } = await import('firebase/auth');
-        authProvider = new GoogleAuthProvider();
-        authProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
-        authProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-      } else {
-        const { OAuthProvider } = await import('firebase/auth');
-        authProvider = new OAuthProvider('microsoft.com');
-      }
-      
-      authProvider.setCustomParameters({
-        prompt: 'select_account'
-      });
-
-      const { signInWithRedirect } = await import('firebase/auth');
-      await signInWithRedirect(ternSecureAuth, authProvider);
     } catch (err) {
-      console.error('Social sign-in error:', err);
-      const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`;
-      setError(errorMessage);
-      onError?.(err instanceof Error ? err : new Error(errorMessage));
-      setLoading(false);
-      sessionStorage.removeItem('auth_redirect_url');
-      sessionStorage.removeItem('auth_return_url');
+      const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
+      setError(errorMessage)
+      onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
+      setLoading(false)
+      sessionStorage.removeItem('auth_redirect_url')
     }
-  };
+  }
 
   if (checkingRedirect && isRedirectSignIn) {
     return (
