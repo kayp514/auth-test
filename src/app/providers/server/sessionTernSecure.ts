@@ -188,7 +188,7 @@ export async function setServerSession(token: string) {
       }
   
       // Verify the session cookie
-      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true)
+      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie)
       
       // Additional check to ensure user still exists and is not disabled
       const user = await adminAuth.getUser(decodedClaims.uid)

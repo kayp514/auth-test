@@ -31,6 +31,23 @@ export function TernSecureClientProvider({
     isValid: initialUserStatus.isValid,
   }))
 
+  const constructFullUrl = useCallback((path: string, redirectUrl?: string) => {
+    const baseUrl = window.location.origin
+    
+    const url = new URL(path, baseUrl)
+    
+    if (redirectUrl && !redirectUrl.startsWith(loginPath)) {
+      // Ensure redirect URL is also absolute if it's not already
+      const fullRedirectUrl = redirectUrl.startsWith('http') 
+        ? redirectUrl 
+        : `${baseUrl}${redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`}`
+      
+      url.searchParams.set('redirect_url', fullRedirectUrl)
+    }
+    
+    return url.toString()
+  }, [loginPath])
+
   const handleSignOut = useCallback(async (redirectPath?: string) => {
     try {
       await auth.signOut()
@@ -43,16 +60,10 @@ export function TernSecureClientProvider({
 
       const redirectUrl = redirectPath || pathname
 
-      if (redirectUrl && !redirectUrl.startsWith(loginPath)) {
-        const searchParams = new URLSearchParams({
-          redirect_url: redirectUrl
-        }).toString()
+      const fullLoginUrl = constructFullUrl(loginPath, redirectUrl)
 
-        const fullLoginPath = `${loginPath}?${searchParams}`
-        window.location.href = fullLoginPath
-      } else {
-        window.location.href = loginPath
-      }
+        window.location.href = fullLoginUrl
+      
     } catch (signOutError) {
       console.error('Error during sign out:', signOutError)
       setAuthState(prev => ({
@@ -60,7 +71,7 @@ export function TernSecureClientProvider({
         error: signOutError instanceof Error ? signOutError : new Error('Failed to sign out'),
       }))
     }
-  }, [auth, pathname, loginPath])
+  }, [auth, pathname, loginPath, constructFullUrl])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
@@ -84,12 +95,9 @@ export function TernSecureClientProvider({
 
 
             if (!pathname.startsWith(loginPath)) {
-              const searchParams = new URLSearchParams({
-                redirect_url: pathname
-              }).toString()
 
-              const fullLoginPath = `${loginPath}?${searchParams}`
-              window.location.href = fullLoginPath
+              const fullLoginUrl = constructFullUrl(loginPath, pathname)
+              window.location.href = fullLoginUrl
             }
           }
         } catch (error) {
@@ -104,7 +112,7 @@ export function TernSecureClientProvider({
     )
     
     return () => unsubscribe()
-  }, [auth, handleSignOut, router, pathname, loginPath])
+  }, [auth, handleSignOut, router, pathname, loginPath, constructFullUrl])
 
   const contextValue: TernSecureCtxValue = useMemo(() => ({
     ...authState,

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithEmail, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,8 @@ import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
+
+
 
 
 export interface SignInProps {
@@ -41,10 +43,13 @@ export function SignIn({
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  //const searchParams = useSearchParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
 
   useEffect(() => {
+    const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
+    
+    if (isRedirectSignIn) {
       const checkRedirect = async () => {
         try {
           const result = await getRedirectResult(ternSecureAuth)
@@ -60,11 +65,16 @@ export function SignIn({
           console.error('Redirect error:', error)
           setError(error instanceof Error ? error.message : 'Failed to complete sign-in');
           onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'));
+          // Remove the redirect parameter on error
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('signInRedirect')
+          window.history.replaceState({}, '', newUrl.toString())
         }
       }
 
       checkRedirect()
-  }, [router, onError])
+    }
+  }, [router, onError, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,6 +96,9 @@ export function SignIn({
   const handleSocialSignIn = async (provider: 'google' | 'microsoft') => {
     setLoading(true)
     try {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.set('signInRedirect', 'true')
+      window.history.replaceState({}, '', currentUrl.toString())
 
       const result = provider === 'google' ? await signInWithRedirectGoogle() : await signInWithMicrosoft()
       if (!result.success) {
@@ -95,9 +108,23 @@ export function SignIn({
       const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
       setError(errorMessage)
       onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
+
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('signInRedirect')
+      window.history.replaceState({}, '', newUrl.toString())
     }
   }
 
+  if (searchParams.get('signInRedirect') === 'true') {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative flex items-center justify-center">
