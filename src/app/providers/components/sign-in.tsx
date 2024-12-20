@@ -60,7 +60,7 @@ export function SignIn({
     try {
       if (isLocalhost) {
         // Get a fresh ID token
-        const idToken = await user.getIdToken(true);
+        const idToken = await user.getIdToken();
         console.log('ID Token:', idToken);
 
         // Call our localhost handler API
@@ -104,6 +104,10 @@ export function SignIn({
       console.log('Auth domain hostname:', new URL(`https://${authDomain}`).hostname);
 
       const result = await getRedirectResult(ternSecureAuth)
+      if(!result){
+        setError('No Result Found')
+        return false
+      }
       console.log('Redirect result:', result);
       if (result) {
         const idToken = await result.user.getIdToken()
@@ -130,7 +134,7 @@ export function SignIn({
     }
   }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError])
 
- // const REDIRECT_TIMEOUT = 5000;
+ //const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
     //let timeoutId: NodeJS.Timeout;
@@ -138,19 +142,19 @@ export function SignIn({
     if (isRedirectSignIn) {
       handleRedirectResult();
 
-      /*timeoutId = setTimeout(() => {
-        console.warn('Redirect check timed out');
-        setCheckingRedirect(false);
-        setError('Sign in took too long. Please try again.');
+      //timeoutId = setTimeout(() => {
+       // console.warn('Redirect check timed out');
+     //  setCheckingRedirect(false);
+     //   setError('Sign in took too long. Please try again.');
         
-      }, REDIRECT_TIMEOUT);*/
+    //  }, REDIRECT_TIMEOUT);
     }
 
-   /* return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };*/
+   // return () => {
+    //  if (timeoutId) {
+        //clearTimeout(timeoutId);
+    //  }
+   // };
   }, [handleRedirectResult, isRedirectSignIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
