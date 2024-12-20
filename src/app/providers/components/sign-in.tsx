@@ -98,17 +98,17 @@ export function SignIn({
     if (!isRedirectSignIn) return false
     setCheckingRedirect(true)
     try {
-      //console.log('Checking redirect result...');
-      //console.log('Current hostname:', window.location.hostname);
-      //console.log('Auth domain hostname:', authDomain);
+      console.log('Checking redirect result...');
+      console.log('Current hostname:', window.location.hostname);
+      console.log('Auth domain hostname:', authDomain);
 
-    //const isOnAuth = authDomain && 
-    //window.location.hostname === authDomain.replace(/https?:\/\//, '');
-    //console.log('Is on  AuthDomain:', isOnAuth);
+    const isOnAuth = authDomain && 
+    window.location.hostname === authDomain.replace(/https?:\/\//, '');
+    console.log('Is on  AuthDomain:', isOnAuth);
 
 
       const result = await getRedirectResult(ternSecureAuth)
-      //console.log('Redirect result:', result);
+      console.log('Redirect result:', result);
       if (result) {
         const idToken = await result.user.getIdToken()
         const sessionResult = await createSessionCookie(idToken)
@@ -121,7 +121,7 @@ export function SignIn({
         window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams)
         return true
       }
-      return false
+      setCheckingRedirect(false)
     } catch (err) {
       console.error('Redirect result error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
