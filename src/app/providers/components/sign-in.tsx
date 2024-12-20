@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signInWithEmail, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,16 +11,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
-import { getRedirectResult } from 'firebase/auth'
-import { ternSecureAuth } from '../utils/client-init'
-import { createSessionCookie } from '../server/sessionTernSecure'
+//import { getRedirectResult } from 'firebase/auth'
+//import { ternSecureAuth } from '../utils/client-init'
+//import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
 
 
 
 
 export interface SignInProps {
+  redirectUrl?: string
   onError?: (error: Error) => void
+  onSuccess?: () => void
   className?: string
   customStyles?: {
     card?: string
@@ -34,8 +36,10 @@ export interface SignInProps {
   }
 }
 
-export function SignIn({ 
-  onError, 
+export function SignIn({
+  redirectUrl,
+  onError,
+  onSuccess,
   className,
   customStyles = {}
 }: SignInProps) {
@@ -44,37 +48,42 @@ export function SignIn({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const searchParams = useSearchParams()
-  const router = useRouter()
 
-  useEffect(() => {
-    const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
+  const constructFullUrl = useCallback((redirectPath: string) => {
+    // Ensure we have the full origin
+    const baseUrl = window.location.origin
     
-    if (isRedirectSignIn) {
-      const checkRedirect = async () => {
-        try {
-          const result = await getRedirectResult(ternSecureAuth)
-          if (result) {
-            const idToken = await result.user.getIdToken()
-            const session = await createSessionCookie(idToken)
-            if (!session.success) {
-              throw new Error('Failed to create session')
-            }
-            router.push('/')
-          }
-        } catch (error: unknown) {
-          console.error('Redirect error:', error)
-          setError(error instanceof Error ? error.message : 'Failed to complete sign-in');
-          onError?.(error instanceof Error ? error : new Error('Failed to complete sign-in'));
-          // Remove the redirect parameter on error
-          const newUrl = new URL(window.location.href)
-          newUrl.searchParams.delete('signInRedirect')
-          window.history.replaceState({}, '', newUrl.toString())
-        }
-      }
-
-      checkRedirect()
+    // If the path is already a full URL, return it
+    if (redirectPath.startsWith('http')) {
+      return redirectPath
     }
-  }, [router, onError, searchParams])
+    
+    // Otherwise, construct the full URL
+    return `${baseUrl}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`
+  }, [])
+
+  const getValidRedirectUrl = useCallback(() => {
+    // Priority: 1. prop, 2. URL param, 3. default
+    const redirect = redirectUrl || searchParams.get('redirect_url') || '/'
+    
+    try {
+      // If it's already a full URL
+      if (redirect.startsWith('http')) {
+        const url = new URL(redirect)
+        // Only allow redirects to the same origin
+        if (url.origin === window.location.origin) {
+          return redirect
+        }
+        return '/'
+      }
+      
+      // For relative paths, construct full URL
+      return constructFullUrl(redirect)
+    } catch (e) {
+      console.error('Invalid redirect URL:', e)
+      return constructFullUrl('/')
+    }
+  }, [redirectUrl, searchParams, constructFullUrl])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +91,9 @@ export function SignIn({
     try {
       const user = await signInWithEmail(email, password)
       if (user.success) {
-        router.push('/')
+        onSuccess?.()
+        const validRedirectUrl = getValidRedirectUrl()
+        window.location.href = validRedirectUrl
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
@@ -96,9 +107,9 @@ export function SignIn({
   const handleSocialSignIn = async (provider: 'google' | 'microsoft') => {
     setLoading(true)
     try {
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.set('signInRedirect', 'true')
-      window.history.replaceState({}, '', currentUrl.toString())
+
+      const validRedirectUrl = getValidRedirectUrl()
+      sessionStorage.setItem('auth_redirect_url', validRedirectUrl)
 
       const result = provider === 'google' ? await signInWithRedirectGoogle() : await signInWithMicrosoft()
       if (!result.success) {
@@ -108,10 +119,8 @@ export function SignIn({
       const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
       setError(errorMessage)
       onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
-
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete('signInRedirect')
-      window.history.replaceState({}, '', newUrl.toString())
+      setLoading(false)
+      sessionStorage.removeItem('auth_redirect_url')
     }
   }
 
