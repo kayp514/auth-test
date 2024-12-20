@@ -10,9 +10,8 @@ const  { user, isAuthenticated }  = useAuth();
 //console.log('isLoaded', isLoaded)
 //console.log('isAuthenticated', isAuthenticated)
 
-
     if (!isAuthenticated) {
-        return <div>You are not authenticated.</div>;
+        return <div>Loading...</div>;
     }
 
 

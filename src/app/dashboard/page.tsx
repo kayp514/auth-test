@@ -7,14 +7,10 @@ import { useAuth } from "../providers/hooks/useAuth";
 
 
 export default function Dashboard() {
-const {  user, isLoaded, isAuthenticated } = useAuth();
-
-    if (!isLoaded) {
-        return <div>Loading...</div>;
-    }
+const {  user, isAuthenticated } = useAuth();
 
     if (!isAuthenticated) {
-        return <div>You are not authenticated.</div>;
+        return <div>Loading...</div>;
     }
 
 

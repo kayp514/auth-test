@@ -15,8 +15,12 @@ import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
+import { getValidRedirectUrl } from '../utils/construct'
 
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'http://localhost:3000';
 
 
 export interface SignInProps {
@@ -44,84 +48,165 @@ export function SignIn({
   customStyles = {}
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
+  const [checkingRedirect, setCheckingRedirect] = useState(true)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const searchParams = useSearchParams()
+  const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
 
-  const constructFullUrl = useCallback((redirectPath: string) => {
-    // Ensure we have the full origin
-    const baseUrl = window.location.origin
-    
-    // If the path is already a full URL, return it
-    if (redirectPath.startsWith('http')) {
-      return redirectPath
-    }
-    
-    // Otherwise, construct the full URL
-    return `${baseUrl}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`
-  }, [])
 
-  const getValidRedirectUrl = useCallback(() => {
-    // Priority: 1. prop, 2. URL param, 3. default
-    const redirect = redirectUrl || searchParams.get('redirect_url') || '/'
-    
+  const handleAuthResult = async (user: any) => {
     try {
-      // If it's already a full URL
-      if (redirect.startsWith('http')) {
-        const url = new URL(redirect)
-        // Only allow redirects to the same origin
-        if (url.origin === window.location.origin) {
-          return redirect
+      if (isLocalhost) {
+        // Get a fresh ID token
+        const idToken = await user.getIdToken(true);
+        console.log('ID Token:', idToken);
+
+        // Call our localhost handler API
+        const response = await fetch(`${authDomain}/api/auth/handler`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ idToken }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create session');
         }
-        return '/'
+
+        return true;
+      } else {
+        // Production flow
+        const idToken = await user.getIdToken();
+        const sessionResult = await createSessionCookie(idToken);
+        if (!sessionResult.success) {
+          throw new Error('Failed to create session');
+        }
+        return true;
       }
-      
-      // For relative paths, construct full URL
-      return constructFullUrl(redirect)
-    } catch (e) {
-      console.error('Invalid redirect URL:', e)
-      return constructFullUrl('/')
+    } catch (error) {
+      console.error('Handle auth result error:', error);
+      throw error;
     }
-  }, [redirectUrl, searchParams, constructFullUrl])
+  };
 
 
   const handleRedirectResult = useCallback(async () => {
+    if (!isRedirectSignIn) return false
+    setCheckingRedirect(true)
     try {
-      const result = await getRedirectResult(ternSecureAuth)
-      if (result) {
-        // Get the ID token
-        const idToken = await result.user.getIdToken()
+      console.log('Checking redirect result...');
+
+      if (isLocalhost) {
+
+        const currentUrl = new URL(window.location.href);
+        const currentPath = currentUrl.pathname;
+        const currentSearch = currentUrl.search;
         
-        // Create session cookie
-        const sessionResult = await createSessionCookie(idToken)
-        if (!sessionResult.success) {
-          throw new Error('Failed to create session')
+        
+        // Construct Firebase auth domain URL
+        const authUrl = `https://${authDomain}${currentPath}${currentSearch}`;
+        console.log('Redirecting to auth domain:', authUrl);
+        
+        // Store the localhost URL for return
+        const localhostUrl = `http://localhost:${currentUrl.port}${currentPath}${currentSearch}`;
+        sessionStorage.setItem('auth_return_url', localhostUrl);
+
+        // Redirect to Firebase auth domain
+        window.location.href = authUrl;
+        return false;
+      }
+      const isAuthDomain = window.location.hostname === new URL(`https://${authDomain}`).hostname;
+      console.log('Is auth domain:', isAuthDomain);
+      console.log('Current hostname:', window.location.hostname);
+      console.log('Auth domain hostname:', new URL(`https://${authDomain}`).hostname);
+
+      const result = await getRedirectResult(ternSecureAuth)
+      console.log('Redirect result:', result);
+      if (result) {
+        if (isAuthDomain) {
+          // We're on Firebase auth domain, get token and redirect back to localhost
+          const idToken = await result.user.getIdToken(true);
+          sessionStorage.setItem('auth_temp_token', idToken);
+          
+          const returnUrl = sessionStorage.getItem('auth_return_url');
+          if (returnUrl) {
+            window.location.href = returnUrl;
+            return true;
+          }
         }
 
-        // Get stored redirect URL or use default
-        const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url')
-        sessionStorage.removeItem('auth_redirect_url') // Clean up
+        // Normal flow or back on localhost
+        const tempToken = sessionStorage.getItem('auth_temp_token');
+        if (tempToken) {
+          // Create session with the temporary token
+          const response = await fetch('/api/auth/handler', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ idToken: tempToken }),
+          });
 
-        onSuccess?.()
-        
-        // Redirect to stored URL or default
-        window.location.href = storedRedirectUrl || getValidRedirectUrl()
+          if (!response.ok) {
+            throw new Error('Failed to create session');
+          }
+
+          // Clean up
+          sessionStorage.removeItem('auth_temp_token');
+          sessionStorage.removeItem('auth_return_url');
+        } else {
+          // Direct auth result handling
+          await handleAuthResult(result.user);
+        }
+
+        const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url');
+        sessionStorage.removeItem('auth_redirect_url');
+        onSuccess?.();
+        window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams);
+        return true;
       }
+
+      return false;
     } catch (err) {
-      console.error('Redirect result error:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
-      setError(errorMessage)
-      onError?.(err instanceof Error ? err : new Error(errorMessage))
-      // Clean up stored redirect URL on error
-      sessionStorage.removeItem('auth_redirect_url')
+      console.error('Redirect result error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
+      setError(errorMessage);
+      onError?.(err instanceof Error ? err : new Error(errorMessage));
+      // Clean up all storage
+      sessionStorage.removeItem('auth_redirect_url');
+      sessionStorage.removeItem('auth_return_url');
+      sessionStorage.removeItem('auth_temp_token');
+      return false;
+    } finally {
+      setCheckingRedirect(false);
     }
-  }, [getValidRedirectUrl, onSuccess, onError])
+  }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError]);
+
+  //const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
-    // Check for redirect result when component mounts
-    handleRedirectResult()
-  }, [handleRedirectResult])
+    //let timeoutId: NodeJS.Timeout;
+
+    if (isRedirectSignIn) {
+      handleRedirectResult();
+
+      /*timeoutId = setTimeout(() => {
+        console.warn('Redirect check timed out');
+        setCheckingRedirect(false);
+        setError('Sign in took too long. Please try again.');
+        
+      }, REDIRECT_TIMEOUT);*/
+    }
+
+   /* return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };*/
+  }, [handleRedirectResult, isRedirectSignIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,8 +215,7 @@ export function SignIn({
       const user = await signInWithEmail(email, password)
       if (user.success) {
         onSuccess?.()
-        const validRedirectUrl = getValidRedirectUrl()
-        window.location.href = validRedirectUrl
+        window.location.href = getValidRedirectUrl(redirectUrl, searchParams)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
@@ -146,8 +230,12 @@ export function SignIn({
     setLoading(true)
     try {
 
-      const validRedirectUrl = getValidRedirectUrl()
+      const validRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
       sessionStorage.setItem('auth_redirect_url', validRedirectUrl)
+
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.set('signInRedirect', 'true')
+      window.history.replaceState({}, '', currentUrl.toString())
 
       const result = provider === 'google' ? await signInWithRedirectGoogle() : await signInWithMicrosoft()
       if (!result.success) {
@@ -162,12 +250,12 @@ export function SignIn({
     }
   }
 
-  if (searchParams.get('signInRedirect') === 'true') {
+  if (checkingRedirect && isRedirectSignIn) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-sm text-muted-foreground">Checking authentication...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          
         </div>
       </div>
     )
