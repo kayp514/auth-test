@@ -5,19 +5,17 @@ import { useRouter, usePathname } from 'next/navigation'
 import { onAuthStateChanged, User } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 import { TernSecureState, TernSecureCtxValue, TernSecureCtx } from './TernSecureCtx'
-import { UserStatus } from '../server/sessionTernSecure'
+
 
 
 
 interface TernSecureClientProviderProps {
   children: React.ReactNode
-  initialUserStatus: UserStatus
   loginPath?: string
 }
 
 export function TernSecureClientProvider({ 
   children,
-  initialUserStatus,
   loginPath = process.env.NEXT_PUBLIC_LOGIN_PATH || '/sign-in'
 }: TernSecureClientProviderProps) {
   const auth = useMemo(() => ternSecureAuth, [])
@@ -25,10 +23,10 @@ export function TernSecureClientProvider({
   const pathname = usePathname()
   
   const [authState, setAuthState] = useState<TernSecureState>(() => ({
-    userId: initialUserStatus.userId || null,
+    userId: null,
     isLoaded: true,
-    error: initialUserStatus.error ? new Error(initialUserStatus.error) : null,
-    isValid: initialUserStatus.isValid,
+    error:  null,
+    isValid: false,
   }))
 
   const constructFullUrl = useCallback((path: string, redirectUrl?: string) => {

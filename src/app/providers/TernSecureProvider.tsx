@@ -1,6 +1,5 @@
 import React from "react"
 import { TernSecureClientProvider } from "../providers/internal/TernSecureClientProvider"
-import { verifyUser } from "../providers/server/sessionTernSecure"
 
 
 
@@ -37,14 +36,10 @@ export async function TernSecureProvider({
   children
 }: TernSecureProviderProps) {
   // Verify user status server-side before mounting client provider
-  const userStatus = await verifyUser()
-  const loginPath = process.env.NEXT_PUBLIC_LOGIN_PATH || '/sign-in'
+
   
   return (
-    <TernSecureClientProvider
-      loginPath={loginPath}
-      initialUserStatus={userStatus}
-      >
+    <TernSecureClientProvider>
       {children}
     </TernSecureClientProvider>
   )

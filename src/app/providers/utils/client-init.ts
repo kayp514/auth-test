@@ -20,6 +20,9 @@ setPersistence(ternSecureAuth, browserSessionPersistence); //to change later use
 const firestore = getFirestore(clientApp);
 const storage = getStorage(clientApp);
 
+
 export const TernSecureAuth = () => ternSecureAuth;
 export const TernSecureFirestore = () => firestore;
 export const TernSecureStorage = () => storage;
+
+
