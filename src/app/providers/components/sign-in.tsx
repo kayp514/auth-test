@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signInWithEmail, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,9 +11,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
-//import { getRedirectResult } from 'firebase/auth'
-//import { ternSecureAuth } from '../utils/client-init'
-//import { createSessionCookie } from '../server/sessionTernSecure'
+import { getRedirectResult } from 'firebase/auth'
+import { ternSecureAuth } from '../utils/client-init'
+import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
 
 
@@ -84,6 +84,44 @@ export function SignIn({
       return constructFullUrl('/')
     }
   }, [redirectUrl, searchParams, constructFullUrl])
+
+
+  const handleRedirectResult = useCallback(async () => {
+    try {
+      const result = await getRedirectResult(ternSecureAuth)
+      if (result) {
+        // Get the ID token
+        const idToken = await result.user.getIdToken()
+        
+        // Create session cookie
+        const sessionResult = await createSessionCookie(idToken)
+        if (!sessionResult.success) {
+          throw new Error('Failed to create session')
+        }
+
+        // Get stored redirect URL or use default
+        const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url')
+        sessionStorage.removeItem('auth_redirect_url') // Clean up
+
+        onSuccess?.()
+        
+        // Redirect to stored URL or default
+        window.location.href = storedRedirectUrl || getValidRedirectUrl()
+      }
+    } catch (err) {
+      console.error('Redirect result error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
+      setError(errorMessage)
+      onError?.(err instanceof Error ? err : new Error(errorMessage))
+      // Clean up stored redirect URL on error
+      sessionStorage.removeItem('auth_redirect_url')
+    }
+  }, [getValidRedirectUrl, onSuccess, onError])
+
+  useEffect(() => {
+    // Check for redirect result when component mounts
+    handleRedirectResult()
+  }, [handleRedirectResult])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
