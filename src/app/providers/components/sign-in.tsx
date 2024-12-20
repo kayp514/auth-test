@@ -107,7 +107,7 @@ export function SignIn({
         
         
         // Construct Firebase auth domain URL
-        const authUrl = `https://${authDomain}${currentPath}${currentSearch}`;
+        const authUrl = `https://${authDomain}`;
         console.log('Redirecting to auth domain:', authUrl);
         
         // Store the localhost URL for return
@@ -126,66 +126,32 @@ export function SignIn({
       const result = await getRedirectResult(ternSecureAuth)
       console.log('Redirect result:', result);
       if (result) {
-        if (isAuthDomain) {
-          // We're on Firebase auth domain, get token and redirect back to localhost
-          const idToken = await result.user.getIdToken(true);
-          sessionStorage.setItem('auth_temp_token', idToken);
-          
-          const returnUrl = sessionStorage.getItem('auth_return_url');
-          if (returnUrl) {
-            window.location.href = returnUrl;
-            return true;
-          }
+        //await handleAuthResult(result.user);
+        const idToken = await result.user.getIdToken()
+        const sessionResult = await createSessionCookie(idToken)
+        if (!sessionResult.success) {
+          throw new Error('Failed to create session')
         }
-
-        // Normal flow or back on localhost
-        const tempToken = sessionStorage.getItem('auth_temp_token');
-        if (tempToken) {
-          // Create session with the temporary token
-          const response = await fetch('/api/auth/handler', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ idToken: tempToken }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to create session');
-          }
-
-          // Clean up
-          sessionStorage.removeItem('auth_temp_token');
-          sessionStorage.removeItem('auth_return_url');
-        } else {
-          // Direct auth result handling
-          await handleAuthResult(result.user);
-        }
-
-        const storedRedirectUrl = sessionStorage.getItem('auth_redirect_url');
-        sessionStorage.removeItem('auth_redirect_url');
-        onSuccess?.();
-        window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams);
-        return true;
+        const storedRedirectUrl = sessionStorage.getItem('auth_return_url')
+        sessionStorage.removeItem('auth_redirect_url') 
+        onSuccess?.()
+        window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams)
+        return true
       }
-
-      return false;
+      return false
     } catch (err) {
-      console.error('Redirect result error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
-      setError(errorMessage);
-      onError?.(err instanceof Error ? err : new Error(errorMessage));
-      // Clean up all storage
-      sessionStorage.removeItem('auth_redirect_url');
-      sessionStorage.removeItem('auth_return_url');
-      sessionStorage.removeItem('auth_temp_token');
-      return false;
+      console.error('Redirect result error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
+      setError(errorMessage)
+      onError?.(err instanceof Error ? err : new Error(errorMessage))
+      sessionStorage.removeItem('auth_redirect_url')
+      return false
     } finally {
-      setCheckingRedirect(false);
+      setCheckingRedirect(false)
     }
-  }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError]);
+  }, [isRedirectSignIn, redirectUrl, searchParams, onSuccess, onError])
 
-  //const REDIRECT_TIMEOUT = 5000;
+ // const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
     //let timeoutId: NodeJS.Timeout;
