@@ -16,7 +16,6 @@ import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct'
-import { auth } from '../server/auth'
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
