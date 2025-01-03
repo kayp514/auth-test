@@ -20,7 +20,7 @@ import { getValidRedirectUrl } from '../utils/construct'
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'http://localhost:3000';
+const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
 
 export interface SignInProps {

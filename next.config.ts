@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      allowedOrigins: ['https://auth-test-one-chi.vercel.app', 'http://localhost:3000'],
+      allowedOrigins: ['https://auth-test-one-chi.vercel.app', 'http://localhost'],
     },
   },
 
