@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { TernSecureProvider } from "./providers/TernSecureProvider";
-//import { TernSecureProvider } from "@tern-secure/nextjs";
+//import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
 import { SignOut } from "./providers/components/sign-out";
 
 const geistSans = localFont({

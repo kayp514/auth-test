@@ -4,7 +4,7 @@ import { SignIn } from "../providers/components/sign-in"
 
 export const dynamic = 'force-dynamic'
 
-export default function SignInPage() {
+export default function Page() {
   return (
     <SignIn />
   )

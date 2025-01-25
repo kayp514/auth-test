@@ -28,6 +28,7 @@ export function TernSecureClientProvider({
     isLoaded: true,
     error:  null,
     isValid: false,
+    email: null
   }))
 
 
@@ -39,6 +40,7 @@ export function TernSecureClientProvider({
         userId: null,
         error: null,
         isValid: false,
+        email: null
       })
 
       const redirectUrl = redirectPath || pathname
@@ -53,6 +55,13 @@ export function TernSecureClientProvider({
     }
   }, [auth, pathname, loginPath])
 
+  const setEmail = useCallback((email: string) => {
+    setAuthState((prev) => ({
+      ...prev,
+      email,
+    }))
+  }, [])
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -63,18 +72,20 @@ export function TernSecureClientProvider({
               isLoaded: true,
               userId: user.uid,
               isValid: true,
-              error: null
+              error: null,
+              email: user.email,
             })
           } else {
             setAuthState({
               isLoaded: true,
               userId: null,
               isValid: false,
-              error: new Error('User is not authenticated')
+              error: new Error('User is not authenticated'),
+              email: null
             })
 
 
-            if (!pathname.startsWith(loginPath)) {
+            if (!pathname.startsWith(loginPath) && !window.location.pathname.includes("/sign-up")) {
 
               const fullLoginUrl = constructUrlWithRedirect(loginPath, pathname, loginPath)
               window.location.href = fullLoginUrl
@@ -97,7 +108,8 @@ export function TernSecureClientProvider({
   const contextValue: TernSecureCtxValue = useMemo(() => ({
     ...authState,
     signOut: handleSignOut,
-  }), [authState, handleSignOut])
+    setEmail
+  }), [authState, handleSignOut, setEmail])
 
   if (!authState.isLoaded) {
     return (
