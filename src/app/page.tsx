@@ -1,7 +1,7 @@
 'use client'
 
-import { useAuth } from "./providers/hooks/useAuth";
-//import { useAuth } from "@tern-secure/nextjs";
+//import { useAuth } from "./providers/hooks/useAuth";
+import { useAuth } from "@tern-secure/nextjs";
 import { redirect } from "next/navigation";
 
 export default function Home() {
