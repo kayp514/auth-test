@@ -13,7 +13,7 @@
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-separator": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.1",
-    "@tern-secure/nextjs": "file:../tern-secure-nextjs-3.4.3.tgz",
+    "@tern-secure/nextjs": "^3.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase-functions": "^6.1.2",
