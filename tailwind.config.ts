@@ -6,6 +6,9 @@ export default {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+	"./node_modules/@tern-secure/**/*.{js,ts,jsx,tsx}",  // Adjust the package name
+    "./node_modules/@tern-secure/*/dist/**/*.{js,ts,jsx,tsx}" // For compiled files
+	
   ],
   theme: {
   	extend: {
