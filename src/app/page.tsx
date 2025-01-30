@@ -10,9 +10,6 @@ const  { user, isAuthenticated, isLoaded }  = useAuth();
 //console.log('isLoaded', isLoaded)
 //console.log('isAuthenticated', isAuthenticated)
 
-if (!isLoaded) {
-    return <div>Loading...</div>;
-}
 
     if (!isAuthenticated) {
         return null
