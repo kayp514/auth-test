@@ -5,5 +5,5 @@ import { SignIn } from "../../providers/components/sign-in"
 
 
 export default function Page() {
-  return <SignIn redirectUrl="/v0"/>
+  return <SignIn />
 }
