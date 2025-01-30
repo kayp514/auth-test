@@ -2,20 +2,35 @@ import React from "react"
 import { TernSecureClientProvider } from "../providers/internal/TernSecureClientProvider"
 
 
-
-
-interface TernSecureProviderProps {
-  children: React.ReactNode
+/**
+ * Configuration options for TernSecure authentication
+ */
+export interface TernSecureConfig {
+  /** Whether email verification is required (defaults to true) */
+  requiresVerification?: boolean
+  /** Custom path for login page (defaults to /sign-in) */
+  loginPath?: string
+  /** Custom path for signup page (defaults to /sign-up) */
+  signUpPath?: string
+  /** Custom loading component */
+  loadingComponent?: React.ReactNode
 }
 
+// Loading fallback component
+/*function TernSecureLoadingFallback() {
+  return (
+    <div>
+      <span className="sr-only">Loading...</span>
+    </div>
+  )
+}*/
 /**
  * Root Provider for TernSecure
  * Use this in your Next.js App Router root layout
  * Automatically handles client/server boundary and authentication state
  * 
  * @example
- * ```tsx
- * // app/layout.tsx
+ * /// app/layout.tsx
  * import { TernSecureProvider } from '@tern/secure'
  * 
  * export default function RootLayout({ children }) {
@@ -29,18 +44,22 @@ interface TernSecureProviderProps {
  *     </html>
  *   )
  * }
- * ```
  */
-
 export async function TernSecureProvider({ 
-  children
-}: TernSecureProviderProps) {
-  // Verify user status server-side before mounting client provider
-
-  
+  children,
+  requiresVerification = true,
+  loginPath,
+  signUpPath,
+  loadingComponent,
+ }: React.PropsWithChildren<TernSecureConfig>) {
   return (
-    <TernSecureClientProvider>
-      {children}
+    <TernSecureClientProvider
+      requiresVerification={requiresVerification}
+      loginPath={loginPath}
+      signUpPath={signUpPath}
+      loadingComponent={loadingComponent}
+    >
+        {children}
     </TernSecureClientProvider>
   )
 }

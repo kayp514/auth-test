@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-//import { TernSecureProvider } from "./providers/TernSecureProvider";
-import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
-//import { SignOut } from "./providers/components/sign-out";
+import { TernSecureProvider } from "./providers/TernSecureProvider";
+//import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
+import { SignOut } from "./providers/components/sign-out";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

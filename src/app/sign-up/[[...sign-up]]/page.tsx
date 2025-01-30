@@ -1,5 +1,5 @@
-//import { SignUp } from "../../providers/components/sign-up"
-import { SignUp } from "@tern-secure/nextjs"
+import { SignUp } from "../../providers/components/sign-up"
+//import { SignUp } from "@tern-secure/nextjs"
 
 
 

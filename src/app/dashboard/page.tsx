@@ -9,9 +9,6 @@ import { useAuth } from "../providers/hooks/useAuth";
 export default function Dashboard() {
 const {  user, isAuthenticated } = useAuth();
 
-    if (!isAuthenticated) {
-        return <div>Loading...</div>;
-    }
 
 
     const handleHome = () => {

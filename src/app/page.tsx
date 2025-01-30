@@ -1,17 +1,21 @@
 'use client'
 
-//import { useAuth } from "./providers/hooks/useAuth";
-import { useAuth } from "@tern-secure/nextjs";
+import { useAuth } from "./providers/hooks/useAuth";
+//import { useAuth } from "@tern-secure/nextjs";
 import { redirect } from "next/navigation";
 
 export default function Home() {
-const  { user, isAuthenticated }  = useAuth();
+const  { user, isAuthenticated, isLoaded }  = useAuth();
 //console.log('User', user)
 //console.log('isLoaded', isLoaded)
 //console.log('isAuthenticated', isAuthenticated)
 
+if (!isLoaded) {
+    return <div>Loading...</div>;
+}
+
     if (!isAuthenticated) {
-        return <div>Loading...</div>;
+        return null
     }
 
 

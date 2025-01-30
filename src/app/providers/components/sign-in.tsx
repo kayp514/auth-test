@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { signInWithEmail, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,8 @@ import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct'
+import { useAuth } from '../hooks/useAuth'
+import type { SignInResponse } from '../utils/types'
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -53,6 +55,9 @@ export function SignIn({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const searchParams = useSearchParams()
+  const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
+  const router = useRouter()
+  const { requiresVerification } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
 
 
@@ -158,11 +163,23 @@ export function SignIn({
     e.preventDefault()
     setLoading(true)
     try {
-      const user = await signInWithEmail(email, password)
-      if (user.success) {
-        onSuccess?.()
-        window.location.href = getValidRedirectUrl(redirectUrl, searchParams)
+      const response= await signInWithEmail(email, password)
+      setAuthResponse(response)
+
+      if (response.user) {
+        if(requiresVerification && !response.user.emailVerified) {
+          setError('Email verification required')
       }
+      const idToken = await response.user.getIdToken()
+      const sessionResult = await createSessionCookie(idToken)
+
+      if (!sessionResult.success) {
+        throw new Error(sessionResult.message)
+      }
+
+      onSuccess?.()
+      router.push(getValidRedirectUrl(redirectUrl, searchParams))
+    }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
       setError(errorMessage)
@@ -219,9 +236,20 @@ export function SignIn({
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+          {(error || authResponse?.message) && (
+            <Alert  variant={authResponse?.error === 'REQUIRES_VERIFICATION'? "destructive" : "destructive"}>
+              <AlertDescription>
+              <span>{error || authResponse?.message}</span>
+              {authResponse?.error === 'REQUIRES_VERIFICATION' && (
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto font-normal text-sm hover:underline"
+                      onClick={() => router.push(`/sign-in/verify`)}
+                    >
+                      Request new verification email →
+                    </Button>
+                  )}
+              </AlertDescription>
             </Alert>
           )}
           <div className="space-y-2">
