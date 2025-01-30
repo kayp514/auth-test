@@ -11,9 +11,6 @@ const  { user, isAuthenticated, isLoaded }  = useAuth();
 //console.log('isAuthenticated', isAuthenticated)
 
 
-    if (!isAuthenticated) {
-        return null
-    }
 
 
   const handleDashboard = () => {

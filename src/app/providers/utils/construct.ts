@@ -1,3 +1,5 @@
+import { isInternalRoute } from "../internal/internal-route"
+
 /**
  * Constructs a full URL with the current origin
  * @param path - The path to construct the URL for
@@ -10,31 +12,61 @@ export const constructFullUrl = (path: string) => {
     }
     return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
   }
+
+
+/**
+ * Checks if the current URL has a redirect loop
+ * @param currentPath - The current pathname
+ * @param redirectPath - The path we're trying to redirect to
+ * @returns boolean indicating if there's a redirect loop
+ */
+export const hasRedirectLoop = (currentPath: string, redirectPath: string): boolean => {
+  if (!currentPath || !redirectPath) return false
+
+  // Remove any query parameters for comparison
+  const cleanCurrentPath = currentPath.split("?")[0]
+  const cleanRedirectPath = redirectPath.split("?")[0]
+
+  return cleanCurrentPath === cleanRedirectPath
+}
   
-  /**
-   * Constructs a URL with redirect parameters
-   * @param path - The base path (usually login path)
-   * @param redirectUrl - The URL to redirect to after action completes
-   * @param loginPath - The login path to check against
-   * @param signUpPath - The sign up path to check against
-   * @returns The full URL with redirect parameters
-   */
-  export const constructUrlWithRedirect = (path: string, redirectUrl: string, loginPath: string, signUpPath: string) => {
-    // Create the URL with the full origin
-    const url = new URL(path, window.location.origin)
-    
-    // Add redirect parameter if provided and not redirecting to login
-    if (redirectUrl && !redirectUrl.startsWith(loginPath) && !redirectUrl.startsWith(signUpPath)) {
-      // Ensure redirect URL is also absolute if it's not already
-      const fullRedirectUrl = redirectUrl.startsWith('http') 
-        ? redirectUrl 
-        : constructFullUrl(redirectUrl)
-      
-      url.searchParams.set('redirect_url', fullRedirectUrl)
-    }
-    
+/**
+ * Constructs a URL with redirect parameters while preventing loops
+ * @param path - The base path (usually login path)
+ * @param redirectUrl - The URL to redirect to after action completes
+ * @param loginPath - The login path to check against
+ * @param signUpPath - The sign up path to check against
+ * @returns The full URL with redirect parameters
+ */
+export const constructUrlWithRedirect = (
+  path: string,
+  redirectUrl: string,
+  loginPath: string,
+  signUpPath: string,
+): string => {
+  // Create the URL with the full origin
+  const url = new URL(path, window.location.origin)
+
+  // Check for redirect loops
+  if (hasRedirectLoop(window.location.pathname, path)) {
     return url.toString()
   }
+
+  // Add redirect parameter if provided and not redirecting to login/signup
+  if (
+    redirectUrl &&
+    !redirectUrl.startsWith(loginPath) &&
+    !redirectUrl.startsWith(signUpPath) &&
+    !isInternalRoute(redirectUrl)
+  ) {
+    // Ensure redirect URL is also absolute if it's not already
+    const fullRedirectUrl = redirectUrl.startsWith("http") ? redirectUrl : constructFullUrl(redirectUrl)
+
+    url.searchParams.set("redirect_url", fullRedirectUrl)
+  }
+
+  return url.toString()
+}
   
   /**
    * Gets a validated redirect URL ensuring it's from the same origin
@@ -86,3 +118,8 @@ export const determineAuthRedirect = (
 
   return getValidRedirectUrl(redirect, params)
 }
+
+
+
+
+

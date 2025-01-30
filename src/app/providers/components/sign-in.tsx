@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { signInWithEmail, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct'
 import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
+import { handleInternalRoute } from '../internal/internal-route'
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -56,12 +57,19 @@ export function SignIn({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
   const router = useRouter()
   const { requiresVerification, error: authError } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
+  const InternalComponent = handleInternalRoute(pathname)
 
   const validatedRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
+
+  if (InternalComponent) {
+    return <InternalComponent />
+  }
+
 
   useEffect(() => {
     if (authError && !error) {

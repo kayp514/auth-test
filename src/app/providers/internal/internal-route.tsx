@@ -2,10 +2,22 @@ import { Verify } from "../components/verify"
 
 // Internal route mapping
 export const internalRoutes = {
-  verify: {
+  signUpVerify: {
     pattern: /^\/sign-up\/verify$/,
     component: Verify,
   },
+  signInVerify: {
+    pattern: /^\/sign-in\/verify$/,
+    component: Verify,
+  },
+}
+
+export function isInternalRoute(pathname: string): boolean {
+  return Object.values(internalRoutes).some((route) => route.pattern.test(pathname))
+}
+
+export function isAuthRoute(pathname: string): boolean {
+  return pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")
 }
 
 // Internal route handler
@@ -17,4 +29,3 @@ export function handleInternalRoute(pathname: string) {
   }
   return null
 }
-

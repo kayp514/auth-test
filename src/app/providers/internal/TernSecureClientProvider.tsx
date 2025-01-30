@@ -7,7 +7,7 @@ import { ternSecureAuth } from '../utils/client-init'
 import { TernSecureCtxValue, TernSecureCtx } from './TernSecureCtx'
 import type { TernSecureState, SignInResponse, AuthError } from '../utils/types'
 import { ERRORS } from '../utils/errors'
-import { constructUrlWithRedirect } from '../utils/construct'
+import { isInternalRoute, isAuthRoute } from './internal-route'
 
 /**
  * @internal
@@ -60,29 +60,59 @@ export function TernSecureClientProvider({
   }));
 
 
-  const constructUrlWithRedirect = (
-    loginPath: string,
-    currentPath: string,
-    loginPathParam: string,
-    signUpPathParam: string,
-  ): string => {
-    const baseUrl = window.location.origin
-    const signInUrl = new URL(loginPath, baseUrl)
+  const constructUrlWithRedirect = useCallback(
+    (loginPath: string, currentPath: string, loginPathParam: string, signUpPathParam: string): string => {
+      const baseUrl = window.location.origin
+      const signInUrl = new URL(loginPath, baseUrl)
 
-    // Only add redirect if not already on login or signup page
-    if (!currentPath.includes(loginPathParam) && !currentPath.includes(signUpPathParam)) {
-      signInUrl.searchParams.set("redirect", currentPath)
-    }
-    return signInUrl.toString()
-  }
+      // Only add redirect if not already on login or signup page
+      if (!currentPath.includes(loginPathParam) && !currentPath.includes(signUpPathParam)) {
+        signInUrl.searchParams.set("redirect", currentPath)
+      }
+      return signInUrl.toString()
+    },
+    [],
+  )
+
+  const shouldRedirect = useCallback(
+    (pathname: string, isVerified: boolean) => {
+      // Don't redirect if we're on an internal route
+      if (isInternalRoute(pathname)) {
+        return false
+      }
+
+      // Don't redirect if we're in auth routes (except when handling verification)
+      if (isAuthRoute(pathname) && (!requiresVerification || isVerified)) {
+        return false
+      }
+
+      return true
+    },
+    [requiresVerification],
+  )
 
   const redirectToLogin = useCallback(
     (currentPath?: string) => {
       const path = currentPath || pathname || "/"
+
+      if (isInternalRoute(path)) {
+        return
+      }
+
       setIsRedirecting(true)
 
       const loginUrl = constructUrlWithRedirect(loginPath, path, loginPath, signUpPath)
-      router.push(loginUrl)
+
+      if (window.location.pathname === loginPath && window.location.search.includes("redirect")) {
+        return
+      }
+
+      if (process.env.NODE_ENV === "production") {
+        window.location.href = loginUrl
+      } else {
+        // Use router.push for development
+        router.push(loginUrl)
+      }
   }, 
   [router, loginPath, signUpPath, pathname]
 )
@@ -187,13 +217,13 @@ export function TernSecureClientProvider({
               requiresVerification,
             })
 
-            if (requiresVerification && !isVerified && !pathname?.includes(signUpPath)) {
+            if (requiresVerification && !isVerified &&  shouldRedirect(pathname || "", isVerified)) {
               if(initialLoad || !isRedirecting) {
                 redirectToLogin(pathname)
               }
             }
           } else {
-            setAuthState({
+            setAuthState({  
               isLoaded: true,
               userId: null,
               isValid: false,
@@ -207,7 +237,7 @@ export function TernSecureClientProvider({
             })
 
 
-            if (!pathname.includes(signUpPath) && initialLoad) {
+            if (shouldRedirect(pathname || "", false) && initialLoad) {
               redirectToLogin()
             }
           }
@@ -226,7 +256,7 @@ export function TernSecureClientProvider({
       mounted = false
       unsubscribe()
     }
-  }, [auth, handleSignOut, requiresVerification, signUpPath, redirectToLogin, pathname, isRedirecting])
+  }, [auth, handleSignOut, requiresVerification, redirectToLogin, pathname, isRedirecting, shouldRedirect])
 
   const contextValue: TernSecureCtxValue = useMemo(() => ({
     ...authState,
