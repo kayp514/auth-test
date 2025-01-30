@@ -174,10 +174,10 @@ export function TernSecureClientProvider({
             })
 
             if (requiresVerification && !isVerified && !pathname?.startsWith(signUpPath)) {
-              if(!isRedirecting) {
+              if(initialLoad || !isRedirecting) {
                 redirectToLogin(pathname)
+              }
             }
-          }
           } else {
             setAuthState({
               isLoaded: true,
