@@ -75,13 +75,12 @@ export function TernSecureClientProvider({
 )
 
 
-  const handleSignOut = useCallback(async (redirectPath?: string) => {
-    try {
+  const handleSignOut = useCallback(async (error?: Error) => {
       await auth.signOut()
       setAuthState({
         isLoaded: true,
         userId: null,
-        error: null,
+        error: error || null,
         isValid: false,
         token: null,
         email: null,
@@ -95,13 +94,7 @@ export function TernSecureClientProvider({
       //const fullLoginUrl = constructUrlWithRedirect(loginPath, redirectUrl, loginPath)
       //window.location.href = fullLoginUrl
       redirectToLogin()
-    } catch (signOutError) {
-      console.error('Error during sign out:', signOutError)
-      setAuthState(prev => ({
-        ...prev,
-        error: signOutError instanceof Error ? signOutError : new Error('Failed to sign out'),
-      }))
-    }
+
   }, [auth, pathname, loginPath, redirectToLogin])
 
   const setEmail = useCallback((email: string) => {
@@ -154,9 +147,13 @@ export function TernSecureClientProvider({
   ])
 
   useEffect(() => {
+    let mounted = true
+    let initialLoad = true
+
     const unsubscribe = onAuthStateChanged(
       auth,
       async (user: User | null) => {
+        if (!mounted) return
         try {
           if (user) {
             const isValid = !!user.uid;
@@ -200,18 +197,21 @@ export function TernSecureClientProvider({
               redirectToLogin()
             }
           }
-        } catch (error) {
-          console.error('Error in auth state change:', error)
-          handleSignOut()
-        }
-      },
-      (error) => {
+
+      } catch (error) {
         console.error('Auth state change error:', error)
-        handleSignOut()
+        if (mounted) {
+          handleSignOut(error instanceof Error ? error : new Error("Authentication error occurred"))
+        }
+      } finally {
+        initialLoad = false
       }
-    )
+    })
     
-    return () => unsubscribe()
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
   }, [auth, handleSignOut, router, pathname, loginPath, requiresVerification, signUpPath, redirectToLogin])
 
   const contextValue: TernSecureCtxValue = useMemo(() => ({
