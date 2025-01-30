@@ -62,6 +62,7 @@ export function SignIn({
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
+  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null)
   const router = useRouter()
   const { requiresVerification, error: authError, status } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
@@ -75,10 +76,17 @@ export function SignIn({
 
   useEffect(() => {
     if (authError && status !== "loading" && status !== "unauthenticated") {
-      setFormError(authError.message || "Authentication failed")
-      setAuthResponse(authError as SignInResponse)
+
+      const message = authError.message || "Authentication failed"
+      setAuthErrorMessage(message)
+
+      if(!authResponse || authResponse.message !== message) {
+        setAuthResponse(authError as SignInResponse)
+      }
+    } else {
+      setAuthErrorMessage(null)
     }
-  }, [authError, status])
+  }, [authError, status, authResponse])
 
   const handleSuccessfulAuth = useCallback(
     async (user: User) => {
@@ -188,15 +196,15 @@ export function SignIn({
 
   useEffect(() => {
     if (isRedirectSignIn) {
-      handleRedirectResult();
-    };
+      handleRedirectResult()
+    }
   }, [handleRedirectResult, isRedirectSignIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setFormError("")
     setAuthResponse(null)
-    setError("")
 
     try {
       const response= await signInWithEmail(email, password)
@@ -244,6 +252,12 @@ export function SignIn({
     }
   }
 
+  const handleVerificationRedirect = (e: React.MouseEvent) => {
+    e.preventDefault()
+    router.push("/sign-in/verify")
+  }
+
+
   if (checkingRedirect && isRedirectSignIn) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -256,10 +270,10 @@ export function SignIn({
   }
 
 const showEmailVerificationButton =
-  authResponse?.error === "EMAIL_NOT_VERIFIED" ||
+  authResponse?.error === "REQUIRES_VERIFICATION" ||
   (authError?.error === "EMAIL_NOT_VERIFIED" && status !== "loading" && status !== "unauthenticated")
 
-const showAlert = formError || (authError?.message && status !== "loading" && status !== "unauthenticated")
+const showAlert = formError || (authErrorMessage && status !== "loading" && status !== "unauthenticated")
 
   return (
     <div className="relative flex items-center justify-center">
@@ -274,15 +288,14 @@ const showAlert = formError || (authError?.message && status !== "loading" && st
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           {showAlert && (
-            <Alert
-            variant={showEmailVerificationButton ? "destructive" : "destructive"}>
+            <Alert variant={showEmailVerificationButton ? "destructive" : "destructive"}>
               <AlertDescription>
-              <span>{formError || authError?.message}</span>
+              <span>{formError || authErrorMessage}</span>
               {showEmailVerificationButton && (
                     <Button
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"
-                      onClick={() => router.push(`/sign-in/verify`)}
+                      onClick={handleVerificationRedirect}
                     >
                       Request new verification email →
                     </Button>
