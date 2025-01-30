@@ -55,6 +55,7 @@ export function SignIn({
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
   const [checkingRedirect, setCheckingRedirect] = useState(true)
+  const [formError, setFormError] = useState("")
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,10 +63,9 @@ export function SignIn({
   const pathname = usePathname()
   const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
   const router = useRouter()
-  const { requiresVerification, error: authError } = useAuth()
+  const { requiresVerification, error: authError, status } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
   const InternalComponent = handleInternalRoute(pathname || "")
-  const finalRedirectUrl = determineAuthRedirect(redirectUrl, searchParams, pathname || "/")
   const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
 
   if (InternalComponent) {
@@ -74,11 +74,11 @@ export function SignIn({
 
 
   useEffect(() => {
-    if (authError && !error) {
-      setError(authError.message || "Authentication failed")
+    if (authError && status !== "loading" && status !== "unauthenticated") {
+      setFormError(authError.message || "Authentication failed")
       setAuthResponse(authError as SignInResponse)
     }
-  }, [authError, error])
+  }, [authError, status])
 
   const handleSuccessfulAuth = useCallback(
     async (user: User) => {
@@ -104,11 +104,11 @@ export function SignIn({
         throw new Error("Failed to complete authentication")
       }
     },
-    [finalRedirectUrl, validRedirectUrl, router, onSuccess],
+    [validRedirectUrl, router, onSuccess],
   )
 
 
-  const handleAuthResult = async (user: any) => {
+  {/* const handleAuthResult = async (user: any) => {
     try {
       if (isLocalhost) {
         // Get a fresh ID token
@@ -143,6 +143,7 @@ export function SignIn({
       throw error;
     }
   };
+  */}
 
 
   const handleRedirectResult = useCallback(async () => {
@@ -211,7 +212,8 @@ export function SignIn({
     }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
-      setError(errorMessage)
+      //setError(errorMessage)
+      setFormError(errorMessage)
       onError?.(err instanceof Error ? err : new Error('Failed to sign in'))
     } finally {
       setLoading(false)
@@ -253,6 +255,12 @@ export function SignIn({
     )
   }
 
+const showEmailVerificationButton =
+  authResponse?.error === "EMAIL_NOT_VERIFIED" ||
+  (authError?.error === "EMAIL_NOT_VERIFIED" && status !== "loading" && status !== "unauthenticated")
+
+const showAlert = formError || (authError?.message && status !== "loading" && status !== "unauthenticated")
+
   return (
     <div className="relative flex items-center justify-center">
       <AuthBackground />
@@ -265,12 +273,12 @@ export function SignIn({
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {(error || authError?.message) && (
+          {showAlert && (
             <Alert
-            variant={authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'EMAIL_NOT_VERIFIED' ? "destructive" : "destructive"}>
+            variant={showEmailVerificationButton ? "destructive" : "destructive"}>
               <AlertDescription>
-              <span>{error || authError?.message}</span>
-              {(authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'EMAIL_NOT_VERIFIED') && (
+              <span>{formError || authError?.message}</span>
+              {showEmailVerificationButton && (
                     <Button
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"
