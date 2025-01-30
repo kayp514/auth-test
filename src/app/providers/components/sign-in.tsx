@@ -23,6 +23,7 @@ const isLocalhost = typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+const appName = process.env.NEXT_PUBLIC_FIREBASE_APP_NAME || "TernSecure"
 
 
 export interface SignInProps {
@@ -57,8 +58,17 @@ export function SignIn({
   const searchParams = useSearchParams()
   const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
   const router = useRouter()
-  const { requiresVerification } = useAuth()
+  const { requiresVerification, error: authError } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
+
+  const validatedRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
+
+  useEffect(() => {
+    if (authError && !error) {
+      setError(authError.message || "Authentication failed")
+      setAuthResponse(authError as SignInResponse)
+    }
+  }, [authError, error])
 
 
   const handleAuthResult = async (user: any) => {
@@ -162,6 +172,8 @@ export function SignIn({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setAuthResponse(null)
+    setError("")
     try {
       const response= await signInWithEmail(email, password)
       setAuthResponse(response)
@@ -169,16 +181,20 @@ export function SignIn({
       if (response.user) {
         if(requiresVerification && !response.user.emailVerified) {
           setError('Email verification required')
+          return
       }
+
       const idToken = await response.user.getIdToken()
       const sessionResult = await createSessionCookie(idToken)
 
       if (!sessionResult.success) {
-        throw new Error(sessionResult.message)
+        throw new Error(sessionResult.message || 'Failed to create session')
       }
 
+      const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
+
       onSuccess?.()
-      router.push(getValidRedirectUrl(redirectUrl, searchParams))
+      router.push(validRedirectUrl)
     }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
@@ -236,11 +252,12 @@ export function SignIn({
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {(error || authResponse?.message) && (
-            <Alert  variant={authResponse?.error === 'REQUIRES_VERIFICATION'? "destructive" : "destructive"}>
+          {(error || authError?.message) && (
+            <Alert
+            variant={authResponse?.error === 'REQUIRES_VERIFICATION'? "destructive" : "destructive"}>
               <AlertDescription>
-              <span>{error || authResponse?.message}</span>
-              {authResponse?.error === 'REQUIRES_VERIFICATION' && (
+              <span>{error || authError?.message}</span>
+              {(authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'REQUIRES_VERIFICATION') && (
                     <Button
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"

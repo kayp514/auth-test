@@ -59,23 +59,37 @@ export function TernSecureClientProvider({
     requiresVerification,
   }));
 
-  const redirectToLogin = useCallback((redirectPath?: string) => {
-    const redirectUrl = redirectPath || pathname
-    const fullLoginUrl = constructUrlWithRedirect(loginPath, redirectUrl, loginPath)
-    window.location.href = fullLoginUrl
-    setIsRedirecting(true)
 
-    if (!pathname.startsWith(loginPath) && !pathname.startsWith(signUpPath)) {
-      const fullLoginUrl = constructUrlWithRedirect(loginPath, pathname, loginPath)
-      window.location.href = fullLoginUrl
+  const constructUrlWithRedirect = (
+    loginPath: string,
+    currentPath: string,
+    loginPathParam: string,
+    signUpPathParam: string,
+  ): string => {
+    const baseUrl = window.location.origin
+    const signInUrl = new URL(loginPath, baseUrl)
+
+    // Only add redirect if not already on login or signup page
+    if (!currentPath.includes(loginPathParam) && !currentPath.includes(signUpPathParam)) {
+      signInUrl.searchParams.set("redirect", currentPath)
     }
+    return signInUrl.toString()
+  }
 
+  const redirectToLogin = useCallback(
+    (currentPath?: string) => {
+      const path = currentPath || pathname || "/"
+      setIsRedirecting(true)
+
+      const loginUrl = constructUrlWithRedirect(loginPath, path, loginPath, signUpPath)
+      router.push(loginUrl)
   }, 
   [router, loginPath, signUpPath, pathname]
 )
 
 
   const handleSignOut = useCallback(async (error?: Error) => {
+    const currentPath = window.location.pathname
       await auth.signOut()
       setAuthState({
         isLoaded: true,
@@ -93,9 +107,9 @@ export function TernSecureClientProvider({
       //const redirectUrl = redirectPath || pathname
       //const fullLoginUrl = constructUrlWithRedirect(loginPath, redirectUrl, loginPath)
       //window.location.href = fullLoginUrl
-      redirectToLogin()
+      redirectToLogin(currentPath)
 
-  }, [auth, pathname, loginPath, redirectToLogin])
+  }, [auth, redirectToLogin, requiresVerification])
 
   const setEmail = useCallback((email: string) => {
     setAuthState((prev) => ({
@@ -173,7 +187,7 @@ export function TernSecureClientProvider({
               requiresVerification,
             })
 
-            if (requiresVerification && !isVerified && !pathname?.startsWith(signUpPath)) {
+            if (requiresVerification && !isVerified && !pathname?.includes(signUpPath)) {
               if(initialLoad || !isRedirecting) {
                 redirectToLogin(pathname)
               }
@@ -193,7 +207,7 @@ export function TernSecureClientProvider({
             })
 
 
-            if (!pathname.startsWith(loginPath) && !pathname.startsWith(signUpPath)) {
+            if (!pathname.includes(signUpPath) && initialLoad) {
               redirectToLogin()
             }
           }
@@ -212,7 +226,7 @@ export function TernSecureClientProvider({
       mounted = false
       unsubscribe()
     }
-  }, [auth, handleSignOut, router, pathname, loginPath, requiresVerification, signUpPath, redirectToLogin])
+  }, [auth, handleSignOut, requiresVerification, signUpPath, redirectToLogin, pathname, isRedirecting])
 
   const contextValue: TernSecureCtxValue = useMemo(() => ({
     ...authState,
@@ -220,7 +234,7 @@ export function TernSecureClientProvider({
     setEmail,
     getAuthError,
     redirectToLogin,
-  }), [authState, handleSignOut, setEmail, redirectToLogin])
+  }), [authState, handleSignOut, setEmail, getAuthError, redirectToLogin])
 
   if (!authState.isLoaded) {
     return (
