@@ -46,7 +46,7 @@ export function SignOut({
       if (redirectUrl && !redirectUrl.startsWith(loginPath)) {
         // Use URLSearchParams to properly encode the parameters
         const searchParams = new URLSearchParams({
-          redirect_url: redirectUrl
+          redirect: redirectUrl
         }).toString()
         
         // Construct the full URL with encoded parameters

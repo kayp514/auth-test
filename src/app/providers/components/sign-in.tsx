@@ -19,6 +19,8 @@ import { getValidRedirectUrl } from '../utils/construct'
 import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
 import { handleInternalRoute } from '../internal/internal-route'
+import { determineAuthRedirect } from '../utils/construct'
+import { User } from 'firebase/auth'
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -62,9 +64,9 @@ export function SignIn({
   const router = useRouter()
   const { requiresVerification, error: authError } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
-  const InternalComponent = handleInternalRoute(pathname)
-
-  const validatedRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
+  const InternalComponent = handleInternalRoute(pathname || "")
+  const finalRedirectUrl = determineAuthRedirect(redirectUrl, searchParams, pathname || "/")
+  const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
 
   if (InternalComponent) {
     return <InternalComponent />
@@ -77,6 +79,33 @@ export function SignIn({
       setAuthResponse(authError as SignInResponse)
     }
   }, [authError, error])
+
+  const handleSuccessfulAuth = useCallback(
+    async (user: User) => {
+      try {
+        const idToken = await user.getIdToken()
+        const sessionResult = await createSessionCookie(idToken)
+
+        if (!sessionResult.success) {
+          throw new Error(sessionResult.message || "Failed to create session")
+        }
+
+        onSuccess?.()
+
+        // Use the finalRedirectUrl for navigation
+        if (process.env.NODE_ENV === "production") {
+          // Use window.location.href in production for a full page reload
+          window.location.href = validRedirectUrl
+        } else {
+          // Use router.push in development
+          router.push(validRedirectUrl)
+        }
+      } catch (err) {
+        throw new Error("Failed to complete authentication")
+      }
+    },
+    [finalRedirectUrl, validRedirectUrl, router, onSuccess],
+  )
 
 
   const handleAuthResult = async (user: any) => {
@@ -157,23 +186,8 @@ export function SignIn({
  //const REDIRECT_TIMEOUT = 5000;
 
   useEffect(() => {
-    //let timeoutId: NodeJS.Timeout;
-
     if (isRedirectSignIn) {
       handleRedirectResult();
-
-      /*timeoutId = setTimeout(() => {
-        console.warn('Redirect check timed out');
-      setCheckingRedirect(false);
-      setError('Sign in took too long. Please try again.');
-        
-    }, REDIRECT_TIMEOUT);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }*/
     };
   }, [handleRedirectResult, isRedirectSignIn])
 
@@ -182,6 +196,7 @@ export function SignIn({
     setLoading(true)
     setAuthResponse(null)
     setError("")
+
     try {
       const response= await signInWithEmail(email, password)
       setAuthResponse(response)
@@ -192,17 +207,7 @@ export function SignIn({
           return
       }
 
-      const idToken = await response.user.getIdToken()
-      const sessionResult = await createSessionCookie(idToken)
-
-      if (!sessionResult.success) {
-        throw new Error(sessionResult.message || 'Failed to create session')
-      }
-
-      const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
-
-      onSuccess?.()
-      router.push(validRedirectUrl)
+      await handleSuccessfulAuth(response.user)
     }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
@@ -253,7 +258,7 @@ export function SignIn({
       <AuthBackground />
     <Card className={cn("w-full max-w-md mx-auto mt-8", className, customStyles.card)}>
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className={cn("font-bold", customStyles.title)}>Sign in to TernSecure</CardTitle>
+        <CardTitle className={cn("font-bold", customStyles.title)}>Sign in to {`${appName}`} </CardTitle>
         <CardDescription className={cn("text-muted-foreground", customStyles.description)}>
           Please sign in to continue
         </CardDescription>
@@ -262,10 +267,10 @@ export function SignIn({
         <form onSubmit={handleSubmit} className="space-y-4">
           {(error || authError?.message) && (
             <Alert
-            variant={authResponse?.error === 'REQUIRES_VERIFICATION'? "destructive" : "destructive"}>
+            variant={authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'EMAIL_NOT_VERIFIED' ? "destructive" : "destructive"}>
               <AlertDescription>
               <span>{error || authError?.message}</span>
-              {(authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'REQUIRES_VERIFICATION') && (
+              {(authResponse?.error === 'REQUIRES_VERIFICATION' || authError?.error === 'EMAIL_NOT_VERIFIED') && (
                     <Button
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"

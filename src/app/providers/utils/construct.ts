@@ -47,53 +47,56 @@ export const constructUrlWithRedirect = (
   // Create the URL with the full origin
   const url = new URL(path, window.location.origin)
 
-  // Check for redirect loops
+    // Check for redirect loops
   if (hasRedirectLoop(window.location.pathname, path)) {
-    return url.toString()
+      return url.toString()
+    }
+
+  // If we already have a redirect param, keep it
+  const currentSearchParams = new URLSearchParams(window.location.search)
+  if (currentSearchParams.has("redirect")) {
+    return window.location.href
   }
 
   // Add redirect parameter if provided and not redirecting to login/signup
-  if (
-    redirectUrl &&
-    !redirectUrl.startsWith(loginPath) &&
-    !redirectUrl.startsWith(signUpPath) &&
-    !isInternalRoute(redirectUrl)
-  ) {
+  if (redirectUrl && !redirectUrl.startsWith(loginPath) && !redirectUrl.startsWith(signUpPath) && !isInternalRoute(redirectUrl)) {
     // Ensure redirect URL is also absolute if it's not already
     const fullRedirectUrl = redirectUrl.startsWith("http") ? redirectUrl : constructFullUrl(redirectUrl)
 
-    url.searchParams.set("redirect_url", fullRedirectUrl)
+    url.searchParams.set("redirect", fullRedirectUrl)
   }
 
   return url.toString()
 }
+
+
   
-  /**
-   * Gets a validated redirect URL ensuring it's from the same origin
-   * @param redirectUrl - The URL to validate
-   * @param searchParams - The search parameters to check for redirect_url
-   * @returns A validated redirect URL
-   */
-  export const getValidRedirectUrl = (
-    redirectUrl: string | undefined,
-    searchParams: URLSearchParams
-  ): string => {
-    const redirect = redirectUrl || searchParams.get('redirect_url') || '/'
-    
-    try {
-      if (redirect.startsWith('http')) {
-        const url = new URL(redirect)
-        if (url.origin === window.location.origin) {
-          return redirect
-        }
-        return '/'
+/**
+ * Gets a validated redirect URL ensuring it's from the same origin
+ * @param redirectUrl - The URL to validate
+ * @param searchParams - The search parameters to check for redirect
+ * @returns A validated redirect URL
+ */
+export const getValidRedirectUrl = (
+  redirectUrl: string | undefined, 
+  searchParams: URLSearchParams
+): string => {
+  const redirect = redirectUrl || searchParams.get("redirect") || '/'
+
+  try {
+    if (redirect.startsWith("http")) {
+      const url = new URL(redirect)
+      if (url.origin === window.location.origin) {
+        return redirect
       }
-      return constructFullUrl(redirect)
-    } catch (e) {
-      console.error('Invalid redirect URL:', e)
-      return constructFullUrl('/')
+      return '/'
     }
+    return constructFullUrl(redirect)
+  } catch (e) {
+    console.error("Invalid redirect URL:", e)
+    return constructFullUrl('/')
   }
+}
   
   /**
  * Determines the final redirect URL based on multiple sources
@@ -113,7 +116,7 @@ export const determineAuthRedirect = (
   // 3. Current path
   // 4. Default path (/)
 
-  const paramRedirect = params.get("redirect_url")
+  const paramRedirect = params.get("redirect_url") || params.get("redirect")
   const redirect = paramRedirect || props || currentPath || "/"
 
   return getValidRedirectUrl(redirect, params)

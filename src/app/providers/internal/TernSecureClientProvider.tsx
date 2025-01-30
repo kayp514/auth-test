@@ -7,7 +7,8 @@ import { ternSecureAuth } from '../utils/client-init'
 import { TernSecureCtxValue, TernSecureCtx } from './TernSecureCtx'
 import type { TernSecureState, SignInResponse, AuthError } from '../utils/types'
 import { ERRORS } from '../utils/errors'
-import { isInternalRoute, isAuthRoute } from './internal-route'
+import { isInternalRoute, isAuthRoute, isBaseAuthRoute } from './internal-route'
+import { hasRedirectLoop } from '../utils/construct'
 
 /**
  * @internal
@@ -76,6 +77,14 @@ export function TernSecureClientProvider({
 
   const shouldRedirect = useCallback(
     (pathname: string, isVerified: boolean) => {
+      // Get current search params
+      const searchParams = new URLSearchParams(window.location.search)
+
+      // Don't redirect if we're on the base sign-in page with no redirect param
+      if (isBaseAuthRoute(pathname) && !searchParams.has("redirect")) {
+        return false
+      }
+
       // Don't redirect if we're on an internal route
       if (isInternalRoute(pathname)) {
         return false
@@ -95,17 +104,20 @@ export function TernSecureClientProvider({
     (currentPath?: string) => {
       const path = currentPath || pathname || "/"
 
-      if (isInternalRoute(path)) {
+      const searchParams = new URLSearchParams(window.location.search)
+
+      if (isInternalRoute(path)) {  // Don't redirect if we're already on an internal route
+        return
+      }
+
+       // Check for redirect loops
+      if (hasRedirectLoop(path, loginPath)) {
         return
       }
 
       setIsRedirecting(true)
 
       const loginUrl = constructUrlWithRedirect(loginPath, path, loginPath, signUpPath)
-
-      if (window.location.pathname === loginPath && window.location.search.includes("redirect")) {
-        return
-      }
 
       if (process.env.NODE_ENV === "production") {
         window.location.href = loginUrl
@@ -114,7 +126,7 @@ export function TernSecureClientProvider({
         router.push(loginUrl)
       }
   }, 
-  [router, loginPath, signUpPath, pathname]
+  [router, loginPath, signUpPath, pathname, constructUrlWithRedirect]
 )
 
 
@@ -134,9 +146,6 @@ export function TernSecureClientProvider({
         requiresVerification,
       })
 
-      //const redirectUrl = redirectPath || pathname
-      //const fullLoginUrl = constructUrlWithRedirect(loginPath, redirectUrl, loginPath)
-      //window.location.href = fullLoginUrl
       redirectToLogin(currentPath)
 
   }, [auth, redirectToLogin, requiresVerification])
@@ -171,7 +180,7 @@ export function TernSecureClientProvider({
     if (!authState.isAuthenticated && authState.status !== "loading") {
       return {
         success: false,
-        message: 'User is authenticated',
+        message: 'User is not authenticated',
         error: 'AUTHENTICATED',
         user: null,
       }
@@ -217,7 +226,7 @@ export function TernSecureClientProvider({
               requiresVerification,
             })
 
-            if (requiresVerification && !isVerified &&  shouldRedirect(pathname || "", isVerified)) {
+            if (requiresVerification && !isVerified && shouldRedirect(pathname || "", isVerified)) {
               if(initialLoad || !isRedirecting) {
                 redirectToLogin(pathname)
               }

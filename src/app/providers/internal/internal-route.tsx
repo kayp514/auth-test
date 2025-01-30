@@ -12,12 +12,19 @@ export const internalRoutes = {
   },
 }
 
+// Check if path is an internal route
 export function isInternalRoute(pathname: string): boolean {
   return Object.values(internalRoutes).some((route) => route.pattern.test(pathname))
 }
 
+// Check if path is within auth routes
 export function isAuthRoute(pathname: string): boolean {
   return pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")
+}
+
+// Check if path is exactly the base auth route
+export function isBaseAuthRoute(pathname: string): boolean {
+  return pathname === "/sign-in" || pathname === "/sign-up"
 }
 
 // Internal route handler
