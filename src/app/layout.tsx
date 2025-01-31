@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <TernSecureProvider>
           {children}
-          <SignOutLink />
+          <SignOut />
         </TernSecureProvider>
       </body>
     </html>
