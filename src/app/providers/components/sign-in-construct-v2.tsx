@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { Loader2 } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
@@ -22,7 +22,7 @@ import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
 import { handleInternalRoute } from '../internal/internal-route'
 import { User } from 'firebase/auth'
-
+import { ErrorAlertVariant, ErrorCode } from '../utils/errors'
 
 const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const appName = process.env.NEXT_PUBLIC_FIREBASE_APP_NAME || "TernSecure"
@@ -54,10 +54,12 @@ export function SignIn({
 }: SignInProps) {
   const [loading, setLoading] = useState(false)
   const [checkingRedirect, setCheckingRedirect] = useState(true)
-  const [formError, setFormError] = useState("")
+  const [formError, setFormError] = useState<SignInResponse | null>(null)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const [authResponse, setAuthResponse] = useState<SignInResponse | null>(null)
@@ -66,7 +68,6 @@ export function SignIn({
   const { requiresVerification, error: authError, status } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
   const InternalComponent = handleInternalRoute(pathname || "")
-  //const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
   const validRedirectUrl = getValidRedirectUrl(searchParams, redirectUrl)
 
   if (InternalComponent) {
@@ -95,7 +96,11 @@ export function SignIn({
         const sessionResult = await createSessionCookie(idToken)
 
         if (!sessionResult.success) {
-          throw new Error(sessionResult.message || "Failed to create session")
+          setFormError({
+            success: false, 
+            message: sessionResult.message || "Failed to create session", 
+            error: 'INTERNAL_ERROR', 
+            user: null})
         }
 
         onSuccess?.()
@@ -109,7 +114,11 @@ export function SignIn({
           router.push(validRedirectUrl)
         }
       } catch (err) {
-        throw new Error("Failed to complete authentication")
+        setFormError({
+          success: false, 
+          message: "Failed to complete authentication", 
+          error: 'INTERNAL_ERROR', 
+          user: null})
       }
     },
     [validRedirectUrl, router, onSuccess],
@@ -203,7 +212,7 @@ export function SignIn({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setFormError("")
+    setFormError(null)
     setAuthResponse(null)
     setAuthErrorMessage(null)
 
@@ -213,15 +222,19 @@ export function SignIn({
 
       if (response.user) {
         if(requiresVerification && !response.user.emailVerified) {
-          setError('Email verification required')
+          setFormError({
+            success: false, 
+            message: 'Email verification required', 
+            error: 'REQUIRES_VERIFICATION', 
+            user: null
+          })
           return
       }
 
       await handleSuccessfulAuth(response.user)
     }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in'
-      //setError(errorMessage)
+      const errorMessage = err as SignInResponse
       setFormError(errorMessage)
       onError?.(err instanceof Error ? err : new Error('Failed to sign in'))
     } finally {
@@ -245,8 +258,8 @@ export function SignIn({
         throw new Error(result.error)
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
-      setError(errorMessage)
+      const errorMessage = err as SignInResponse
+      setFormError(errorMessage)
       onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
       setLoading(false)
       sessionStorage.removeItem('auth_redirect_url')
@@ -270,11 +283,10 @@ export function SignIn({
     )
   }
 
-const showEmailVerificationButton =
-  authResponse?.error === "REQUIRES_VERIFICATION" ||
-  (authError?.error === "EMAIL_NOT_VERIFIED" && status !== "loading" && status !== "unauthenticated")
 
-const showAlert = formError || (authErrorMessage && status !== "loading" && status !== "unauthenticated")
+const activeError = formError || authResponse
+const showEmailVerificationButton =
+  activeError?.error === "EMAIL_NOT_VERIFIED" || activeError?.error === "REQUIRES_VERIFICATION"
 
   return (
     <div className="relative flex items-center justify-center">
@@ -288,10 +300,10 @@ const showAlert = formError || (authErrorMessage && status !== "loading" && stat
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {showAlert && (
-            <Alert variant={showEmailVerificationButton ? "destructive" : "destructive"}>
+          {activeError && (
+            <Alert variant={ErrorAlertVariant(activeError.error as ErrorCode)}>
               <AlertDescription>
-              <span>{formError || authErrorMessage}</span>
+              <span>{activeError?.message}</span>
               {showEmailVerificationButton && (
                     <Button
                       type='button'
@@ -316,19 +328,42 @@ const showAlert = formError || (authErrorMessage && status !== "loading" && stat
               disabled={loading}
               className={cn(customStyles.input)}
               required
+              aria-invalid={activeError?.error === "INVALID_EMAIL"}
+              aria-describedby={activeError ? "error-message" : undefined}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password" className={cn(customStyles.label)}>Password</Label>
+            <div className="relative">
             <Input
               id="password"
-              type="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
               disabled={loading}
               className={cn(customStyles.input)}
               required
+              aria-invalid={activeError?.error === "INVALID_CREDENTIALS"}
+              aria-describedby={activeError ? "error-message" : undefined}
             />
+          <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  )}
+                  <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
+                </Button>
+            </div>
           </div>
           <Button type="submit" disabled={loading} className={cn("w-full", customStyles.button)}>
             {loading ? (

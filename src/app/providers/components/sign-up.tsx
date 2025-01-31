@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator"
 import { createUser, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { useSignUp } from '../../providers/hooks/useSignUp'
 import { handleInternalRoute } from '../../providers/internal/internal-route'
+import {  ErrorAlertVariant, ErrorCode } from '../utils/errors'
+import { SignInResponse } from "../utils/types"
 
 
 export interface SignUpProps {
@@ -28,19 +30,16 @@ interface PasswordRequirement {
   satisfied: boolean
 }
 
-export function SignUp({
-    redirectUrl, 
-    onError,
-    onSuccess
-      }: SignUpProps) {
+export function SignUp({redirectUrl, onError, onSuccess}: SignUpProps) {
     const pathname = usePathname()
     const InternalComponent = handleInternalRoute(pathname)
+    const { setEmail: setContextEmail } = useSignUp()
 
-     if (InternalComponent) {
+  if (InternalComponent) {
             return <InternalComponent />
-     }
+    }
 
-  const { setEmail: setContextEmail } = useSignUp()
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -49,7 +48,7 @@ export function SignUp({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState<SignInResponse | null>(null)
   const [passwordFocused, setPasswordFocused] = useState(false)
   const router = useRouter()
 
@@ -86,6 +85,7 @@ export function SignUp({
       ...prev,
       [name]: value,
     }))
+    setError(null)
   }
 
   const isFormValid = () => {
@@ -97,6 +97,7 @@ export function SignUp({
     if (!isFormValid()) return
 
     setLoading(true)
+    setError(null)
     try {
      const result = await createUser(formData.email, formData.password)
      if(result.success) {
@@ -105,9 +106,11 @@ export function SignUp({
         onSuccess?.()
 
         router.push(`sign-up/verify`)
+     } else {
+        setError(result)
      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sign in'
+      const errorMessage = error as SignInResponse
       setError(errorMessage)
       onError?.(error instanceof Error ? error : new Error('Failed to create account'))
     } finally {
@@ -128,7 +131,7 @@ export function SignUp({
         throw new Error(result.error)
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to sign in with ${provider}`
+      const errorMessage = err as SignInResponse
       setError(errorMessage)
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('signInRedirect')
@@ -147,8 +150,8 @@ export function SignUp({
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant={ErrorAlertVariant(error.error as ErrorCode)} className="animate-in fade-in-50">
+                <AlertDescription>{error.message}</AlertDescription>
               </Alert>
             )}
 
