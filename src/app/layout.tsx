@@ -4,7 +4,7 @@ import "./globals.css";
 import { TernSecureProvider } from "./providers/TernSecureProvider";
 //import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
 import { SignOut } from "./providers/components/sign-out";
-
+import { SignOutLink } from "./providers/components/sign-out-link";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <TernSecureProvider>
           {children}
-          <SignOut />
+          <SignOutLink />
         </TernSecureProvider>
       </body>
     </html>

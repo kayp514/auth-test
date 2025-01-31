@@ -104,7 +104,6 @@ export function TernSecureClientProvider({
     (currentPath?: string) => {
       const path = currentPath || pathname || "/"
 
-      const searchParams = new URLSearchParams(window.location.search)
 
       if (isInternalRoute(path)) {  // Don't redirect if we're already on an internal route
         return
