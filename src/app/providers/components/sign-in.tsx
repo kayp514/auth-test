@@ -19,7 +19,6 @@ import { getValidRedirectUrl } from '../utils/construct'
 import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
 import { handleInternalRoute } from '../internal/internal-route'
-import { determineAuthRedirect } from '../utils/construct'
 import { User } from 'firebase/auth'
 
 const isLocalhost = typeof window !== 'undefined' && 
