@@ -1,3 +1,5 @@
+//v2: redict with taking priority from the sign-in page
+
 import { isInternalRoute, isAuthRoute } from "../internal/internal-route"
 
 
