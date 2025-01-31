@@ -1,3 +1,4 @@
+//v1: redict without taking priority from the sign-in page
 'use client'
 
 import { useState } from 'react'
@@ -77,4 +78,3 @@ export function SignOut({
     </Button>
   )
 }
-

@@ -1,3 +1,5 @@
+//v2: redict with taking priority from the sign-in page
+
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
@@ -15,14 +17,12 @@ import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
 import { createSessionCookie } from '../server/sessionTernSecure'
 import { AuthBackground } from './background'
-import { getValidRedirectUrl } from '../utils/construct'
+import { getValidRedirectUrl } from '../utils/construct-v2'
 import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
 import { handleInternalRoute } from '../internal/internal-route'
 import { User } from 'firebase/auth'
 
-const isLocalhost = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const appName = process.env.NEXT_PUBLIC_FIREBASE_APP_NAME || "TernSecure"
@@ -66,7 +66,8 @@ export function SignIn({
   const { requiresVerification, error: authError, status } = useAuth()
   const isRedirectSignIn = searchParams.get('signInRedirect') === 'true'
   const InternalComponent = handleInternalRoute(pathname || "")
-  const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
+  //const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
+  const validRedirectUrl = getValidRedirectUrl(searchParams, redirectUrl)
 
   if (InternalComponent) {
     return <InternalComponent />
@@ -177,11 +178,11 @@ export function SignIn({
         const storedRedirectUrl = sessionStorage.getItem('auth_return_url')
         sessionStorage.removeItem('auth_redirect_url') 
         onSuccess?.()
-        window.location.href = storedRedirectUrl || getValidRedirectUrl(redirectUrl, searchParams)
+        window.location.href = storedRedirectUrl || getValidRedirectUrl(searchParams, redirectUrl)
         return true
       }
       setCheckingRedirect(false)
-    } catch (err) {
+    } catch (err) { 
       console.error('Redirect result error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
       setError(errorMessage)
@@ -232,7 +233,7 @@ export function SignIn({
     setLoading(true)
     try {
 
-      const validRedirectUrl = getValidRedirectUrl(redirectUrl, searchParams)
+      const validRedirectUrl = getValidRedirectUrl(searchParams, redirectUrl)
       sessionStorage.setItem('auth_redirect_url', validRedirectUrl)
 
       const currentUrl = new URL(window.location.href)

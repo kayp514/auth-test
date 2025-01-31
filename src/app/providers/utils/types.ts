@@ -101,3 +101,29 @@ export interface TernSecureState {
   requiresVerification: boolean
 }
 
+export interface RedirectConfig {
+  // URL to redirect to after successful authentication
+  redirectUrl?: string
+  // Whether this is a return visit (e.g. after sign out)
+  isReturn?: boolean
+  // Priority of the redirect (higher number = higher priority)
+  priority?: number
+}
+
+export interface SignInProps extends RedirectConfig {
+  onError?: (error: Error) => void
+  onSuccess?: () => void
+  className?: string
+  customStyles?: {
+    card?: string
+    input?: string
+    button?: string
+    label?: string
+    separator?: string
+    title?: string
+    description?: string
+    socialButton?: string
+  }
+}
+
+

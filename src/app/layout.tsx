@@ -3,8 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TernSecureProvider } from "./providers/TernSecureProvider";
 //import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
-import { SignOut } from "./providers/components/sign-out";
-import { SignOutLink } from "./providers/components/sign-out-link";
+import { SignOut } from "./providers/components/sign-out-construct-v2";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

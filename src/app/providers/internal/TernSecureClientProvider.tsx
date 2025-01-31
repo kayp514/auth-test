@@ -8,7 +8,7 @@ import { TernSecureCtxValue, TernSecureCtx } from './TernSecureCtx'
 import type { TernSecureState, SignInResponse, AuthError } from '../utils/types'
 import { ERRORS } from '../utils/errors'
 import { isInternalRoute, isAuthRoute, isBaseAuthRoute } from './internal-route'
-import { hasRedirectLoop } from '../utils/construct'
+import { hasRedirectLoop } from '../utils/construct-v2'
 
 /**
  * @internal
