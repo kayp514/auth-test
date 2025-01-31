@@ -292,19 +292,14 @@ const showAlert = formError || (authErrorMessage && status !== "loading" && stat
               <AlertDescription>
               <span>{formError || authErrorMessage}</span>
               {showEmailVerificationButton && (
-                <div className="ml-2">
                     <Button
                       type='button'
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        router.push("/sign-in/verify")
-                      }}
+                      onClick={handleVerificationRedirect}
                     >
                       Request new verification email →
                     </Button>
-                </div>
                   )}
               </AlertDescription>
             </Alert>
