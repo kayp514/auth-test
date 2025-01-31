@@ -204,6 +204,7 @@ export function SignIn({
     setLoading(true)
     setFormError("")
     setAuthResponse(null)
+    setAuthErrorMessage(null)
 
     try {
       const response= await signInWithEmail(email, password)
@@ -291,13 +292,19 @@ const showAlert = formError || (authErrorMessage && status !== "loading" && stat
               <AlertDescription>
               <span>{formError || authErrorMessage}</span>
               {showEmailVerificationButton && (
+                <div className="ml-2">
                     <Button
+                      type='button'
                       variant="link"
                       className="p-0 h-auto font-normal text-sm hover:underline"
-                      onClick={handleVerificationRedirect}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        router.push("/sign-in/verify")
+                      }}
                     >
                       Request new verification email →
                     </Button>
+                </div>
                   )}
               </AlertDescription>
             </Alert>
