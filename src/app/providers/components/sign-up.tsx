@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { createUser, signInWithRedirectGoogle, signInWithMicrosoft } from '../actions'
 import { useSignUp } from '../../providers/hooks/useSignUp'
 import { handleInternalRoute } from '../../providers/internal/internal-route'
-import {  ErrorAlertVariant, ErrorCode } from '../utils/errors'
+import { getErrorAlertVariant } from '../utils/errors'
 import { SignInResponse } from "../utils/types"
 
 
@@ -150,7 +150,7 @@ export function SignUp({redirectUrl, onError, onSuccess}: SignUpProps) {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
-              <Alert variant={ErrorAlertVariant(error.error as ErrorCode)} className="animate-in fade-in-50">
+              <Alert variant={getErrorAlertVariant(error)} className="animate-in fade-in-50">
                 <AlertDescription>{error.message}</AlertDescription>
               </Alert>
             )}

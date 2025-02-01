@@ -4,7 +4,5 @@ import { SignUp } from "../../providers/components/sign-up"
 
 
 export default function Page() {
-  return (
-    <SignUp />
-  )
+  return <SignUp />
 }

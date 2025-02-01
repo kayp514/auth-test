@@ -22,7 +22,7 @@ import { useAuth } from '../hooks/useAuth'
 import type { SignInResponse } from '../utils/types'
 import { handleInternalRoute } from '../internal/internal-route'
 import { User } from 'firebase/auth'
-import { ErrorAlertVariant, ErrorCode } from '../utils/errors'
+import { getErrorAlertVariant, handleFirebaseAuthError } from '../utils/errors'
 
 const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const appName = process.env.NEXT_PUBLIC_FIREBASE_APP_NAME || "TernSecure"
@@ -98,9 +98,10 @@ export function SignIn({
         if (!sessionResult.success) {
           setFormError({
             success: false, 
-            message: sessionResult.message || "Failed to create session", 
+            message: "Failed to create session", 
             error: 'INTERNAL_ERROR', 
-            user: null})
+            user: null
+          })
         }
 
         onSuccess?.()
@@ -118,7 +119,8 @@ export function SignIn({
           success: false, 
           message: "Failed to complete authentication", 
           error: 'INTERNAL_ERROR', 
-          user: null})
+          user: null
+        })
       }
     },
     [validRedirectUrl, router, onSuccess],
@@ -193,9 +195,11 @@ export function SignIn({
       setCheckingRedirect(false)
     } catch (err) { 
       console.error('Redirect result error:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Authentication failed'
-      setError(errorMessage)
-      onError?.(err instanceof Error ? err : new Error(errorMessage))
+      const errorMessage = err as SignInResponse
+      setFormError(errorMessage)
+      if (onError && err instanceof Error) {
+        onError(err)
+      }
       sessionStorage.removeItem('auth_redirect_url')
       return false
     }
@@ -214,19 +218,22 @@ export function SignIn({
     setLoading(true)
     setFormError(null)
     setAuthResponse(null)
-    setAuthErrorMessage(null)
 
     try {
       const response= await signInWithEmail(email, password)
-      setAuthResponse(response)
+
+      if (!response.success) {
+        setFormError(response)
+        return
+      }
 
       if (response.user) {
         if(requiresVerification && !response.user.emailVerified) {
           setFormError({
             success: false, 
             message: 'Email verification required', 
-            error: 'REQUIRES_VERIFICATION', 
-            user: null
+            error: 'EMAIL_NOT_VERIFIED', 
+            user: response.user
           })
           return
       }
@@ -236,7 +243,9 @@ export function SignIn({
     } catch (err) {
       const errorMessage = err as SignInResponse
       setFormError(errorMessage)
-      onError?.(err instanceof Error ? err : new Error('Failed to sign in'))
+      if (onError && err instanceof Error) {
+        onError(err)
+      }
     } finally {
       setLoading(false)
     }
@@ -260,7 +269,9 @@ export function SignIn({
     } catch (err) {
       const errorMessage = err as SignInResponse
       setFormError(errorMessage)
-      onError?.(err instanceof Error ? err : new Error(`Failed to sign in with ${provider}`))
+      if (onError && err instanceof Error) {
+        onError(err)
+      }
       setLoading(false)
       sessionStorage.removeItem('auth_redirect_url')
     }
@@ -301,9 +312,9 @@ const showEmailVerificationButton =
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           {activeError && (
-            <Alert variant={ErrorAlertVariant(activeError.error as ErrorCode)}>
+            <Alert variant={getErrorAlertVariant(activeError)} className="animate-in fade-in-50">
               <AlertDescription>
-              <span>{activeError?.message}</span>
+              <span>{activeError.message}</span>
               {showEmailVerificationButton && (
                     <Button
                       type='button'
