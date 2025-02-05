@@ -1,34 +1,27 @@
-'use client'
-
 import { useAuth } from "./providers/hooks/useAuth";
+import { auth } from "./providers/server/auth-new";
 //import { useAuth } from "@tern-secure/nextjs";
 import { redirect } from "next/navigation";
 
-export default function Home() {
-const  { user, isAuthenticated, isLoaded }  = useAuth();
+export default async function Home() {
+//const  { user, isAuthenticated, isLoaded }  = useAuth();
+const { user } = await auth();
 //console.log('User', user)
 //console.log('isLoaded', isLoaded)
 //console.log('isAuthenticated', isAuthenticated)
 
-if ( !isLoaded ) {
-  return <div>Loading...</div>
-}
-
-if (!isAuthenticated) {
+if(!user) {
   return null
 }
 
-
-  const handleDashboard = () => {
-    redirect('/dashboard');
-  }
 
 
 
   return (
     <div>
       <h1>Home, {user?.email}</h1>
-      <button className="bg-fuchsia-600" onClick={handleDashboard}>Dashboard</button>
+      <h1>Home, {user?.uid}</h1>
+      <button className="bg-fuchsia-600" >Dashboard</button>
     </div>
   );
 }

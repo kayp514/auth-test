@@ -259,7 +259,8 @@ export function TernSecureClientProvider({
         initialLoad = false
       }
     })
-    
+
+  
     return () => {
       mounted = false
       unsubscribe()
