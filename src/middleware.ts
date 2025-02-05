@@ -1,12 +1,12 @@
-import { ternSecureMiddleware } from '@/app/providers/server/ternSecureMiddleware'
+import { ternSecureMiddleware, createRouteMatcher } from '@/app/providers/server/ternSecureMiddleware'
 
-const publicPaths = [
+const publicPaths = createRouteMatcher([
     '/sign-in',
     '/sign-up',
     '/api/auth/*',
     '/terms',
     '/privacy'
-  ] //user can add more public paths here
+  ]) //user can add more public paths here
 
 const protectedPaths = [
     '/dashboard/*',
@@ -27,9 +27,10 @@ export const config = {
   }  //user can add more config here
 
 // Initialize ternSecureMiddleware with custom config and must be edge runtime
-export default ternSecureMiddleware(async (req) => {
-    if(!publicPaths) {
-        return
+export default ternSecureMiddleware(async (req, request) => {
+    //this will protect all paths except public paths
+    if(!publicPaths(request)) {
+        await req.protect()
     }
 
 })
