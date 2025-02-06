@@ -142,8 +142,7 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
       const auth = await edgeAuthSecond(request)
 
       try {
-
-
+        
         await callback(auth, request)
 
         const response = NextResponse.next()
