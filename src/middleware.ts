@@ -5,7 +5,9 @@ const publicPaths = createRouteMatcher([
     '/sign-up',
     '/api/auth/*',
     '/terms',
-    '/privacy'
+    '/privacy',
+    '/__/auth',
+    '/__/firebase',
   ]) //user can add more public paths here
 
 const protectedPaths = [
