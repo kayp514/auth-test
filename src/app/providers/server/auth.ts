@@ -1,55 +1,82 @@
 'use server'
+import { cookies, headers } from "next/headers"
+import type { UserInfo } from "./edge-session"
 
-import { cookies } from 'next/headers';
-import {  verifyTernIdToken, verifyTernSessionCookie } from './sessionTernSecure';
 
 export interface AuthResult {
-  userId: string | null;
-  token: string | null;
-  error: Error | null;
+  user: UserInfo | null
+  token: string | null
+  error: Error | null
 }
 
-export async function auth(): Promise<AuthResult> {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('_session_cookie')?.value;
-    if (sessionCookie) {
-      const sessionResult = await verifyTernSessionCookie(sessionCookie);
-      if (sessionResult.valid) {
+
+  /**
+   * Get the current authenticated user from the session or token
+   */
+  export async function auth(): Promise<AuthResult> {
+    try {
+      const headersList = await headers()
+      const cookieStore = await cookies()
+
+      const userId = headersList.get('x-user-id')
+      const authTime = headersList.get('x-auth-time')
+      const emailVerified = headersList.get('x-auth-verified') === 'true'
+
+      if (userId) {
+        const token = cookieStore.get("_session_cookie")?.value || 
+                     cookieStore.get("_session_token")?.value || 
+                     null
+  
         return {
-          userId: sessionResult.uid ?? null,
-          token: sessionCookie,
+          user: {
+            uid: userId,
+            email: headersList.get('x-user-email') || null,
+            emailVerified,
+            authTime: authTime ? parseInt(authTime) : undefined
+          },
+          token,
           error: null
-        };
+        }
+      }
+
+      return {
+        user: null,
+        token: null,
+        error: new Error("No valid session or token found"),
+      }
+    } catch (error) {
+      console.error("Error in getAuthResult:", error)
+      return {
+        user: null,
+        token: null,
+        error: error instanceof Error ? error : new Error("An unknown error occurred"),
       }
     }
+}
 
-    // If session cookie is not present or invalid, try the ID token
-    const idToken = cookieStore.get('_session_token')?.value;
-    if (idToken) {
-      const tokenResult = await verifyTernIdToken(idToken);
-      if (tokenResult.valid) {
-        return {
-          userId: tokenResult.uid ?? null,
-          token: idToken,
-          error: null
-        };
-      }
-    }
+/**
+ * Type guard to check if user is authenticated
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const authResult = await auth()
+  return authResult.user !== null
+}
 
-    // If both checks fail, return null values
-    return {
-      userId: null,
-      token: null,
-      error: new Error('No valid session or token found')
-    };
-  } catch (error) {
-    console.error('Error in auth function:', error);
-    return {
-      userId: null,
-      token: null,
-      error: error instanceof Error ? error : new Error('An unknown error occurred')
-    };
+/**
+ * Get user info from auth result
+ */
+export async function getUserInfo(): Promise<UserInfo | null> {
+  const authResult = await auth()
+  if (!authResult.user) {
+    return null
   }
-}
+
+  return {
+    uid: authResult.user.uid,
+    email: authResult.user.email,
+    emailVerified: authResult.user.emailVerified,
+    authTime: authResult.user.authTime
+  }
+  }
+
 

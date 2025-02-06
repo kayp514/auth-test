@@ -86,15 +86,20 @@ export async function getIdToken() {
 }
 
 export async function setServerSession(token: string) {
+  try {
     const cookieStore = await cookies();
-    cookieStore.set('_session', token, {
+    cookieStore.set('_session_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 60 * 60, // 1 hour
       path: '/',
     });
+    return { success: true, message: 'Session created' };
+  } catch {
+    return { success: false, message: 'Failed to create session' };
   }
+}
 
   export async function verifyTernIdToken(token: string): Promise<{ valid: boolean; uid?: string; error?: string }> {
     try {

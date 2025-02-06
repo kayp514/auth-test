@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers'
+import { verifySession, verifySessionEdge, verifyTokenEdge, type UserInfo } from './edge-session'
+import { verifyFirebaseToken } from './jwt';
+import type { AuthResult, AuthUser } from './auth-new'
 
 export const runtime = "edge"
 
-
-interface UserInfo {
-  uid: string
-  email: string | null
-  disabled?: boolean
-}
 
 interface Auth {
   user: UserInfo | null
@@ -20,81 +17,6 @@ type MiddlewareCallback = (
   auth: Auth,
   request: NextRequest
 ) => Promise<void>
-
-
-/**
- * Edge-compatible token verification using Firebase Auth REST API
- */
-async function verifyTokenEdge(idToken: string): Promise<UserInfo | null> {
-  try {
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ idToken }),
-      }
-    )
-
-
-    const data = await response.json()
-    console.log('data Token', data)
-
-    
-    if (!response.ok || !data.users?.[0]) {
-      return null
-    }
-
-    const user = data.users[0]
-    return {
-      uid: user.localId,
-      email: user.email || null,
-      disabled: user.disabled || false
-    }
-  } catch (error) {
-    console.error('Token verification error:', error)
-    return null
-  }
-}
-
-
-/**
- * Edge-compatible session cookie verification
- */
-async function verifySessionEdge(sessionCookie: string): Promise<UserInfo | null> {
-  try {
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionCookie}`
-        }
-      }
-    )
-
-
-    const data = await response.json()
-    console.log('data Session', data)
-
-    if (!response.ok || !data.users?.[0]) {
-      return null
-    }
-
-    const user = data.users[0]
-    return {
-      uid: user.localId,
-      email: user.email || null,
-      disabled: user.disabled || false
-    }
-  } catch (error) {
-    console.error('Session verification error:', error)
-    return null
-  }
-}
 
 
 /**
@@ -129,10 +51,14 @@ async function edgeAuth(request: NextRequest): Promise<Auth>{
     // First try session cookie
     const sessionCookie = cookieStore.get("_session_cookie")?.value
     if (sessionCookie) {
-      const userInfo = await verifySessionEdge(sessionCookie)
-      if (userInfo && !userInfo.disabled) {
+      const userInfo = await verifyFirebaseToken(sessionCookie, true)
+      console.log('userInfo', userInfo)
+      if (userInfo.valid) {
         return { 
-          user: userInfo,
+          user: {
+            uid: userInfo.uid ?? '',
+            email: userInfo.email ?? null,
+          },
           token: sessionCookie,
           protect: async () => {}
         }
@@ -142,10 +68,13 @@ async function edgeAuth(request: NextRequest): Promise<Auth>{
     // Then try ID token
     const idToken = cookieStore.get("_session_token")?.value
     if (idToken) {
-      const userInfo = await verifyTokenEdge(idToken)
-      if (userInfo && !userInfo.disabled) {
+      const userInfo = await verifyFirebaseToken(idToken, false)
+      if (userInfo.valid) {
         return { 
-          user: userInfo,
+          user: {
+            uid: userInfo.uid ?? '',
+            email: userInfo.email ?? null,
+          },
           token: idToken,
           protect: async () => {}
         }
@@ -167,6 +96,42 @@ async function edgeAuth(request: NextRequest): Promise<Auth>{
 }
 
 /**
+ * Edge-compatible auth check
+ */
+async function edgeAuthSecond(request: NextRequest): Promise<Auth> {
+  async function protect() {
+    throw new Error("Unauthorized access")
+  }
+
+  try {
+    const sessionResult = await verifySession(request)
+
+    if (sessionResult.isAuthenticated && sessionResult.user) {
+      return {
+        user: sessionResult.user,
+        token: request.cookies.get("_session_cookie")?.value || request.cookies.get("_session_token")?.value || null,
+        protect: async () => {},
+      }
+    }
+
+    return {
+      user: null,
+      token: null,
+      protect,
+    }
+  } catch (error) {
+    console.error("Auth check error:", error)
+    return {
+      user: null,
+      token: null,
+      protect,
+    }
+  }
+}
+
+
+
+/**
  * Middleware factory that handles authentication and custom logic
  * @param customHandler Optional function for additional custom logic
  */
@@ -174,19 +139,30 @@ async function edgeAuth(request: NextRequest): Promise<Auth>{
 export function ternSecureMiddleware(callback: MiddlewareCallback) {
   return async function middleware(request: NextRequest) {
     try {
-      const auth = await edgeAuth(request)
+      const auth = await edgeAuthSecond(request)
 
       try {
 
+
         await callback(auth, request)
 
-        // If we get here, either the route was public or auth succeeded
         const response = NextResponse.next()
-        if (auth.user) {
-          response.headers.set('x-user-id', auth.user.uid)
-        }
-        return response
 
+        if (auth.user) {
+          // Set auth headers
+          response.headers.set("x-user-id", auth.user.uid)
+          if (auth.user.email) {
+            response.headers.set("x-user-email", auth.user.email)
+          }
+          if (auth.user.emailVerified !== undefined) {
+            response.headers.set("x-email-verified", auth.user.emailVerified.toString())
+          }
+          if (auth.user.authTime) {
+            response.headers.set("x-auth-time", auth.user.authTime.toString())
+          }
+        }
+
+        return response
       } catch (error) {
         // Handle unauthorized access
         if (error instanceof Error && error.message === 'Unauthorized access') {
@@ -198,8 +174,19 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
       }
 
     } catch (error) {
-      console.error('Error in ternSecureMiddleware:', error)
-      const redirectUrl = new URL('/sign-in', request.url)
+      console.error("Middleware error:", {
+        error:
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error,
+        path: request.nextUrl.pathname,
+      })
+
+      const redirectUrl = new URL("/sign-in", request.url)
       return NextResponse.redirect(redirectUrl)
     }
   }
