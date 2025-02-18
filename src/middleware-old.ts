@@ -3,9 +3,6 @@ import { ternSecureMiddleware, createRouteMatcher } from '@/app/providers/server
 const publicPaths = createRouteMatcher([
     '/sign-in',
     '/sign-up',
-    '/api/auth/*',
-    '/terms',
-    '/privacy',
   ]) //user can add more public paths here
 
 const protectedPaths = [
