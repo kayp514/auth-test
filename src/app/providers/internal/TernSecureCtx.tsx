@@ -2,11 +2,39 @@
 
 import { createContext, useContext } from 'react'
 import { ternSecureAuth } from '../utils/client-init';
-import { User } from 'firebase/auth';
-import type { TernSecureState, SignInResponse } from '../utils/types';
+import type { TernSecureState, SignInResponse } from '@/app/providers/utils/types';
+import type { CurrentUser} from '@/app/providers/utils/types';
 
-export const TernSecureUser = (): User | null => {
-  return ternSecureAuth.currentUser;
+export const getCurrentUser = (): CurrentUser | null => {
+  const user = ternSecureAuth.currentUser;
+
+  if (!user) return null
+
+  return {
+    // TernSecureUser fields (UserInfo)
+    displayName: user.displayName,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    photoURL: user.photoURL,
+    providerId: user.providerId,
+    uid: user.uid,
+    
+    // Additional CurrentUser fields (User)
+    emailVerified: user.emailVerified,
+    isAnonymous: user.isAnonymous,
+    metadata: {
+      creationTime: user.metadata.creationTime,
+      lastSignInTime: user.metadata.lastSignInTime,
+    },
+    providerData: user.providerData,
+    refreshToken: user.refreshToken,
+    tenantId: user.tenantId,
+    
+    // BaseUser fields for consistency
+    authTime: user.metadata.lastSignInTime 
+      ? new Date(user.metadata.lastSignInTime).getTime()
+      : undefined
+  }
 }
 
 export interface TernSecureCtxValue extends TernSecureState {

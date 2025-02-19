@@ -1,11 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers'
-import { verifySession, verifySessionEdge, verifyTokenEdge, type UserInfo } from './edge-session'
-import { verifyFirebaseToken } from './jwt';
-import type { AuthResult, AuthUser } from './auth-new'
+import { type NextRequest, NextResponse } from 'next/server';
+import { verifySession } from './edge-session'
 
 export const runtime = "edge"
 
+export interface UserInfo {
+  uid: string
+  email: string | null
+  emailVerified?: boolean
+  authTime?: number
+}
 
 interface Auth {
   user: UserInfo | null
@@ -25,12 +28,13 @@ type MiddlewareCallback = (
 export function createRouteMatcher(patterns: string[]) {
   return (request: NextRequest): boolean => {
     const { pathname } = request.nextUrl
-    return patterns.some(pattern => {
-      // Convert route pattern to regex
-      const regexPattern = new RegExp(
-        `^${pattern.replace(/\*/g, '.*').replace(/\((.*)\)/, '(?:$1)?')}$`
-      )
-      return regexPattern.test(pathname)
+    return patterns.some((pattern) => {
+      // Convert glob pattern to regex safely without dynamic evaluation
+      const regexPattern = pattern
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\\\*/g, ".*")
+      
+      return new RegExp(`^${regexPattern}$`).test(pathname)
     })
   }
 }
@@ -39,66 +43,7 @@ export function createRouteMatcher(patterns: string[]) {
 /**
  * Edge-compatible auth check
  */
-async function edgeAuth(request: NextRequest): Promise<Auth>{
-  const cookieStore = await cookies()
-
-  async function protect() {
-    const { pathname } = request.nextUrl
-    throw new Error('Unauthorized access')
-  }
-
-  try {
-    // First try session cookie
-    const sessionCookie = cookieStore.get("_session_cookie")?.value
-    if (sessionCookie) {
-      const userInfo = await verifyFirebaseToken(sessionCookie, true)
-      console.log('userInfo', userInfo)
-      if (userInfo.valid) {
-        return { 
-          user: {
-            uid: userInfo.uid ?? '',
-            email: userInfo.email ?? null,
-          },
-          token: sessionCookie,
-          protect: async () => {}
-        }
-      }
-    }
-
-    // Then try ID token
-    const idToken = cookieStore.get("_session_token")?.value
-    if (idToken) {
-      const userInfo = await verifyFirebaseToken(idToken, false)
-      if (userInfo.valid) {
-        return { 
-          user: {
-            uid: userInfo.uid ?? '',
-            email: userInfo.email ?? null,
-          },
-          token: idToken,
-          protect: async () => {}
-        }
-      }
-    }
-
-    return {
-      user: null,
-      token: null,
-      protect
-    }
-  } catch (error) {
-    return {
-      user: null,
-      token: null,
-      protect
-    }
-  }
-}
-
-/**
- * Edge-compatible auth check
- */
-async function edgeAuthSecond(request: NextRequest): Promise<Auth> {
+async function edgeAuth(request: NextRequest): Promise<Auth> {
   async function protect() {
     throw new Error("Unauthorized access")
   }
@@ -120,7 +65,8 @@ async function edgeAuthSecond(request: NextRequest): Promise<Auth> {
       protect,
     }
   } catch (error) {
-    console.error("Auth check error:", error)
+    console.error("Auth check error:", error instanceof Error ? error
+    .message : "Unknown error")
     return {
       user: null,
       token: null,
@@ -139,7 +85,7 @@ async function edgeAuthSecond(request: NextRequest): Promise<Auth> {
 export function ternSecureMiddleware(callback: MiddlewareCallback) {
   return async function middleware(request: NextRequest) {
     try {
-      const auth = await edgeAuthSecond(request)
+      const auth = await edgeAuth(request)
 
       try {
         
@@ -165,26 +111,14 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
       } catch (error) {
         // Handle unauthorized access
         if (error instanceof Error && error.message === 'Unauthorized access') {
-          const redirectUrl = new URL('/sign-in', request.url)
-          redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
+          const redirectUrl = new URL("/sign-in", request.url)
+          redirectUrl.searchParams.set("redirect", request.nextUrl.pathname)
           return NextResponse.redirect(redirectUrl)
         }
         throw error
       }
-
     } catch (error) {
-      console.error("Middleware error:", {
-        error:
-          error instanceof Error
-            ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-              }
-            : error,
-        path: request.nextUrl.pathname,
-      })
-
+      console.error("Middleware error:", error instanceof Error ? error.message : "Unknown error")
       const redirectUrl = new URL("/sign-in", request.url)
       return NextResponse.redirect(redirectUrl)
     }

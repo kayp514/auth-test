@@ -1,11 +1,10 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
-import type { User } from "./types"
-import type { TernUser } from "@/app/providers/utils/types"
+import type { BaseUser } from "@/app/providers/utils/types"
 import { verifyFirebaseToken } from "./jwt"
 
 export interface AuthResult {
-  user: User | null
+  user: BaseUser | null
   error: Error | null
 }
 
@@ -24,7 +23,7 @@ export interface AuthResult {
       if (sessionCookie) {
         const result = await verifyFirebaseToken(sessionCookie, true)
         if (result.valid) {
-          const user: User = {
+          const user: BaseUser = {
             uid: result.uid ?? '',
             email: result.email || null,
             authTime: result.authTime
@@ -38,7 +37,7 @@ export interface AuthResult {
       if (idToken) {
         const result = await verifyFirebaseToken(idToken, false)
         if (result.valid) {
-          const user: User = {
+          const user: BaseUser = {
             uid: result.uid ?? '',
             email: result.email || null,
             authTime: result.authTime
@@ -79,7 +78,7 @@ export async function isAuthenticated(): Promise<boolean> {
 /**
  * Get user info from auth result
  */
-export async function getUserInfo(): Promise<User | null> {
+export async function getUserInfo(): Promise<BaseUser | null> {
   const authResult = await auth()
   if (!authResult.user) {
     return null

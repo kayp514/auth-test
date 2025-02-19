@@ -2,6 +2,10 @@ import { FirebaseOptions } from 'firebase/app'
 import { ErrorCode, ERRORS } from './errors'
 
 
+
+export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
+
+
 /**
  * TernSecure Firebase configuration interface
  * Extends Firebase's base configuration options
@@ -126,24 +130,44 @@ export interface SignInProps extends RedirectConfig {
   }
 }
 
-export interface TernUser {
+/**
+ * Base user interface with essential properties from token
+ * Used by server-side auth
+ */
+export interface BaseUser {
   uid: string
   email: string | null
-  authTime?: number
-  displayName?: string | null
-  avatar: string | null;
-  phoneNumber?: string | null
   emailVerified?: boolean
+  authTime?: number
+  disabled?: boolean
 }
 
 
-export interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  uid: string;
-  avatar: string;
-  phoneNumber: string;
+/**
+ * Maps to Firebase UserInfo interface
+ * Basic user information
+ */
+export interface TernSecureUser extends BaseUser {
+  displayName: string | null
+  email: string | null
+  phoneNumber: string | null
+  photoURL: string | null
+  providerId: string
+  uid: string
 }
 
-export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
+/**
+ * Maps to Firebase User interface
+ * Complete user information available client-side
+ */
+export interface CurrentUser extends TernSecureUser {
+  emailVerified: boolean
+  isAnonymous: boolean
+  metadata: {
+    creationTime?: string
+    lastSignInTime?: string
+  }
+  providerData: TernSecureUser[]
+  refreshToken: string
+  tenantId: string | null
+}

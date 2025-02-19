@@ -11,13 +11,6 @@ const { user } = await auth();
 //console.log('isLoaded', isLoaded)
 //console.log('isAuthenticated', isAuthenticated)
 
-const handleDashboardClick = async () => {
-  'use server';
-  redirect('/dashboard');
-};
-
-
-
 
   return (
     <div>
