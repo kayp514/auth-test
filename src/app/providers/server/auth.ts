@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
 import type { User } from "./types"
+import type { TernUser } from "@/app/providers/utils/types"
 import { verifyFirebaseToken } from "./jwt"
 
 export interface AuthResult {

@@ -126,4 +126,24 @@ export interface SignInProps extends RedirectConfig {
   }
 }
 
+export interface TernUser {
+  uid: string
+  email: string | null
+  authTime?: number
+  displayName?: string | null
+  avatar: string | null;
+  phoneNumber?: string | null
+  emailVerified?: boolean
+}
 
+
+export interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  uid: string;
+  avatar: string;
+  phoneNumber: string;
+}
+
+export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
