@@ -80,10 +80,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         connectionError: null,
         socketId: socketInstance.id ?? null
       }))
-      socketInstance.emit('register_client', {
-        apiKey,
-        clientId
-      })
 
       socketInstance.emit('set_presence', {
         status: 'online',
