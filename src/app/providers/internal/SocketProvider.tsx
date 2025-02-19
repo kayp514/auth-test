@@ -35,7 +35,7 @@ interface SocketEventHandlers {
 }
 
 // Helper functions
-const createSocketInstance = () => {
+const createSocketInstance = ({ clientId, apiKey }: { clientId: string, apiKey: string }) => {
   return io(SOCKET_CONFIG.baseUrl, {
     transports: ["websocket"],
     reconnection: true,
@@ -43,6 +43,10 @@ const createSocketInstance = () => {
     reconnectionDelay: SOCKET_CONFIG.reconnectionDelay,
     timeout: SOCKET_CONFIG.connectionTimeout,
     autoConnect: true,
+    auth: {
+      clientId,
+      apiKey
+    }
   })
 }
 
@@ -147,7 +151,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     connectionAttempted.current = true
 
     try {
-      const socketInstance = createSocketInstance()
+      const socketInstance = createSocketInstance({ clientId, apiKey })
       const handlers = createEventHandlers(socketInstance)
 
       // Attach event listeners
