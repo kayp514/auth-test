@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 //import { useAuth } from '@tern-secure/nextjs'
 import { auth } from "../providers/server/auth";
 import Link from "next/link";
-import  { NotificationSenderInRoom }  from '@/components/notifications'
+import  { NotificationSender }  from '@/components/notifications'
 import TestConnection from "@/components/test-connection";
 
 
@@ -28,7 +28,7 @@ const handleHomeClick = async () => {
 
      <div>    
       <span> Send notification </span>
-      <span className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold py-2 px-4 rounded transition-colors inline-block mt-4"><NotificationSenderInRoom /> </span>
+      <span className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold py-2 px-4 rounded transition-colors inline-block mt-4"><NotificationSender /> </span>
       </div>
 
       <div>    
