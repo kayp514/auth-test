@@ -1,11 +1,10 @@
-'use server'
-import { cookies, headers } from "next/headers"
-import type { UserInfo } from "./edge-session"
-
+import { cache } from "react"
+import { cookies } from "next/headers"
+import type { User } from "./types"
+import { verifyFirebaseToken } from "./jwt"
 
 export interface AuthResult {
-  user: UserInfo | null
-  token: string | null
+  user: User | null
   error: Error | null
 }
 
@@ -13,46 +12,60 @@ export interface AuthResult {
   /**
    * Get the current authenticated user from the session or token
    */
-  export async function auth(): Promise<AuthResult> {
+  export const auth = cache(async (): Promise<AuthResult> => {
     try {
-      const headersList = await headers()
-      const cookieStore = await cookies()
-
-      const userId = headersList.get('x-user-id')
-      const authTime = headersList.get('x-auth-time')
-      const emailVerified = headersList.get('x-auth-verified') === 'true'
-
-      if (userId) {
-        const token = cookieStore.get("_session_cookie")?.value || 
-                     cookieStore.get("_session_token")?.value || 
-                     null
+      // Get all active sessions for debugging
+     console.log("auth: Starting auth check...")
+     const cookieStore = await cookies()
   
-        return {
-          user: {
-            uid: userId,
-            email: headersList.get('x-user-email') || null,
-            emailVerified,
-            authTime: authTime ? parseInt(authTime) : undefined
-          },
-          token,
-          error: null
+      // First try session cookie as it's more secure
+      const sessionCookie = cookieStore.get("_session_cookie")?.value
+      if (sessionCookie) {
+        const result = await verifyFirebaseToken(sessionCookie, true)
+        if (result.valid) {
+          const user: User = {
+            uid: result.uid ?? '',
+            email: result.email || null,
+            authTime: result.authTime
+          }
+          return { user, error: null }
         }
       }
-
-      return {
-        user: null,
-        token: null,
-        error: new Error("No valid session or token found"),
+  
+      // Fallback to ID token
+      const idToken = cookieStore.get("_session_token")?.value
+      if (idToken) {
+        const result = await verifyFirebaseToken(idToken, false)
+        if (result.valid) {
+          const user: User = {
+            uid: result.uid ?? '',
+            email: result.email || null,
+            authTime: result.authTime
+          }
+          return { user, error: null }
+        }
       }
-    } catch (error) {
-      console.error("Error in getAuthResult:", error)
-      return {
-        user: null,
-        token: null,
-        error: error instanceof Error ? error : new Error("An unknown error occurred"),
+  
+        return {
+            user: null,
+            error: new Error('UNAUTHENTICATED')
+        }
+  
+      } catch (error) {
+        console.error("Error in Auth:", error)
+        if (error instanceof Error) {
+          return {
+            user: null,
+            error
+          }
+        }
+        return {
+          user: null,
+          error: new Error('INTERNAL_ERROR')
+        }
       }
-    }
-}
+    })
+  
 
 /**
  * Type guard to check if user is authenticated
@@ -65,7 +78,7 @@ export async function isAuthenticated(): Promise<boolean> {
 /**
  * Get user info from auth result
  */
-export async function getUserInfo(): Promise<UserInfo | null> {
+export async function getUserInfo(): Promise<User | null> {
   const authResult = await auth()
   if (!authResult.user) {
     return null

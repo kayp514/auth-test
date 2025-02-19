@@ -1,208 +1,255 @@
-"use client"
+'use client'
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { io, type Socket } from "socket.io-client"
-import { SocketCtx, type Notification } from "./SocketCtx"
-import { useAuth } from "@/app/providers/hooks/useAuth" 
+import { v4 as uuidv4 } from 'uuid'
+import { 
+  SocketCtx, 
+  type Notification, 
+  type NotificationType,
+  type SocketCtxState,
+} from "./SocketCtx"
 
+// Constants
+const SOCKET_CONFIG = {
+  baseUrl: process.env.NEXT_PUBLIC_SOCKET_URL,
+  room: 'notifications',
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  connectionTimeout: 60000,
+} as const
 
-const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL
-const NOTIFICATION_ROOM = 'notifications'; // Define the room name
-
-const RECONNECTION_ATTEMPTS = 5
-const RECONNECTION_DELAY = 1000
-const CONNECTION_TIMEOUT = 60000
-
+// Types
 interface SocketProviderProps {
   children: ReactNode
+  clientId: string
+  apiKey: string
 }
 
+interface SocketEventHandlers {
+  onConnect: () => void
+  onDisconnect: (reason: string) => void
+  onConnectError: (error: Error) => void
+  onRecentNotification: (data: unknown) => void
+  onNotification: (notification: Notification) => void
+}
 
-export function SocketProvider({ children }: SocketProviderProps) {
-  const { user } = useAuth() 
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+// Helper functions
+const createSocketInstance = () => {
+  return io(SOCKET_CONFIG.baseUrl, {
+    transports: ["websocket"],
+    reconnection: true,
+    reconnectionAttempts: SOCKET_CONFIG.reconnectionAttempts,
+    reconnectionDelay: SOCKET_CONFIG.reconnectionDelay,
+    timeout: SOCKET_CONFIG.connectionTimeout,
+    autoConnect: true,
+  })
+}
+
+const validateNotificationData = (data: unknown): data is { notifications: Notification[] } => {
+  return Boolean(
+    data && 
+    typeof data === 'object' && 
+    'notifications' in data && 
+    Array.isArray((data as any).notifications)
+  )
+}
+
+export function SocketProvider({ children, clientId, apiKey }: SocketProviderProps) {
+  const [state, setState] = useState<SocketCtxState>({
+    socket: null,
+    isConnected: false,
+    connectionError: null,
+    notifications: [],
+    socketId: null,
+  })
+  
   const connectionAttempted = useRef(false)
-  const [socketId, setSocketId] = useState<string | null>(null);
 
-  // Initialize socket connection
-  const initializeSocket = useCallback(() => {
-    if (connectionAttempted.current || socket) return
-
-    connectionAttempted.current = true
-    
-
-    try {
-      const socketInstance = io(baseUrl, {
-        transports: ["polling"],
-        reconnection: true,
-        reconnectionAttempts: RECONNECTION_ATTEMPTS,
-        reconnectionDelay: RECONNECTION_DELAY,
-        timeout: CONNECTION_TIMEOUT,
-        autoConnect: true,
+  // Event Handlers
+  const createEventHandlers = useCallback((socketInstance: Socket): SocketEventHandlers => ({
+    onConnect: () => {
+      console.log("Socket connected with ID:", socketInstance.id)
+      setState((prev: SocketCtxState) => ({
+        ...prev,
+        isConnected: true,
+        connectionError: null,
+        socketId: socketInstance.id ?? null
+      }))
+      socketInstance.emit('register_client', {
+        apiKey,
+        clientId
       })
 
-      setSocket(socketInstance)
-      return socketInstance
-    } catch (error) {
-      console.error("Socket initialization error:", error)
-      setConnectionError("Failed to initialize socket connection")
-      connectionAttempted.current = false
-      return null
-    }
-  }, [socket])
+      socketInstance.emit('set_presence', {
+        status: 'online',
+        customMessage: 'In a meeting'
+      });
 
-  // Handle socket events
-  useEffect(() => {
-    if (!socket) return
+      socketInstance.emit('get_presence');
 
-    const handleConnect = () => {
-    const engine = socket.io.engine;
-    console.log(engine.transport.name);
+      socketInstance.emit('create_private_chat', {
+        targetClientId: clientId
+      });
 
-    engine.once('upgrade', () => {
-        console.log(engine.transport.name);
-    });
+      socketInstance.emit('get_rooms');
 
-      console.log("Socket connected")
-      setIsConnected(true)
-      setConnectionError(null)
-      setSocketId(socket.id || null);
-      socket.emit('join', NOTIFICATION_ROOM);
+      socketInstance.emit('send_message', {
+        roomId: 'private:testapikey:Jn9iyvPRhmbsz2C3D63k1FyMYdV2_Jn9iyvPRhmbsz2C3D63k1FyMYdV2',
+        message: 'Hello!'
+      });
 
-      console.log('Socket ID (room):', socket.id);
-    }
+      //socketInstance.emit('join', SOCKET_CONFIG.room)
+    },
 
-    const handleDisconnect = (reason: string) => {
+    onDisconnect: (reason: string) => {
       console.log("Socket disconnected:", reason)
-      setIsConnected(false)
-    }
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        socketId: null
+      }))
+    },
 
-    const handleConnectError = (error: Error) => {
+    onConnectError: (error: Error) => {
       console.error("Socket connection error:", error)
-      setConnectionError(error.message)
-      setIsConnected(false)
-    }
+      setState(prev => ({
+        ...prev,
+        connectionError: error.message,
+        isConnected: false,
+        socketId: null
+      }))
+    },
 
-    const handleRecentNotification = (data: any) => {
-        console.log("Recent notification received:", data);
-        if(data && Array.isArray(data.notifications)) {
-            setNotifications(data.notifications);
-        } else {
-            console.error('Invalid recent_notifications data:', data);
-        }
-    };
-
-    const handleNotification = (notifications: any) => {
-        console.log("notification received:", notifications);
-        setNotifications((prevNotifications) => [...prevNotifications, notifications]);
-    };
-
-
-    // Set up event listeners
-    socket.on("connect", handleConnect)
-    socket.on("disconnect", handleDisconnect)
-    socket.on("connect_error", handleConnectError)
-    socket.on("recent_notification", handleRecentNotification);
-    socket.on("notification", handleNotification);
-
-    // Clean up event listeners
-    return () => {
-      socket.off("connect", handleConnect)
-      socket.off("disconnect", handleDisconnect)
-      socket.off("connect_error", handleConnectError)
-      socket.off("recent_notification", handleRecentNotification)
-      socket.off("notification", handleNotification);
-    }
-  }, [socket, user?.uid])
-
-  // Initialize user
-  const initializeUser = useCallback(
-    (userId: string) => {
-      if (!socket || !isConnected) {
-        initializeSocket()
-        return
-      }
-
-      if(user?.uid) {
-        socket.emit("initialize", userId)
+    onRecentNotification: (data: unknown) => {
+      console.log("Recent notifications received:", data)
+      if (validateNotificationData(data)) {
+        setState(prev => ({
+          ...prev,
+          notifications: data.notifications
+        }))
       }
     },
-    [socket, isConnected, initializeSocket, user],
-  )
 
+    onNotification: (notification: Notification) => {
+      console.log("New notification received:", notification)
+      setState(prev => ({
+        ...prev,
+        notifications: [...prev.notifications, notification]
+      }))
+    }
+  }), [apiKey, clientId])
 
-  // Disconnect socket
-  const disconnect = useCallback(() => {
-    if (socket) {
-      socket.disconnect()
-      setSocket(null)
-      setIsConnected(false)
-      setConnectionError(null)
+  // Socket initialization
+  useEffect(() => {
+    if (connectionAttempted.current) return
+
+    connectionAttempted.current = true
+
+    try {
+      const socketInstance = createSocketInstance()
+      const handlers = createEventHandlers(socketInstance)
+
+      // Attach event listeners
+      socketInstance.on("connect", handlers.onConnect)
+      socketInstance.on("disconnect", handlers.onDisconnect)
+      socketInstance.on("connect_error", handlers.onConnectError)
+      socketInstance.on("recent_notification", handlers.onRecentNotification)
+      socketInstance.on("notification", handlers.onNotification)
+
+      setState(prev => ({ ...prev, socket: socketInstance }))
+
+      // Cleanup
+      return () => {
+        socketInstance.off("connect", handlers.onConnect)
+        socketInstance.off("disconnect", handlers.onDisconnect)
+        socketInstance.off("connect_error", handlers.onConnectError)
+        socketInstance.off("recent_notification", handlers.onRecentNotification)
+        socketInstance.off("notification", handlers.onNotification)
+        socketInstance.disconnect()
+        connectionAttempted.current = false
+      }
+    } catch (error) {
+      console.error("Socket initialization error:", error)
+      setState(prev => ({
+        ...prev,
+        connectionError: "Failed to initialize socket connection"
+      }))
       connectionAttempted.current = false
     }
-  }, [socket])
+  }, [createEventHandlers])
 
-  const sendNotification = useCallback(async (type: string, message: string, data: any = {}) => {
+  // Actions
+  const sendNotification = useCallback(async (
+    type: string, 
+    message: string, 
+    data: Record<string, unknown> = {}
+  ) => {
     try {
-      if (!isConnected || !socket) {
-        throw new Error('Socket not connected');
+      if (!state.isConnected || !state.socket) {
+        throw new Error('Socket not connected')
+      }
+
+      const notification = {
+        id: uuidv4(),
+        type,
+        message,
+        data: {
+          ...data,
+          timestamp: new Date().toISOString()
+        }
       }
 
       const response = await fetch('/api/real', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type,
-          message,
-          data: {
-            ...data,
-            timestamp: new Date().toISOString()
-          }
-        }),
-      });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notification)
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to send notification');
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send notification')
       }
-    } catch (err) {
-      setConnectionError(err instanceof Error ? err.message : 'Error sending notification');
-      throw err;
-    }
-  }, [socket, isConnected]);
 
-  // Auto-initialize socket on mount
-  useEffect(() => {
-    if (!socket && !connectionAttempted.current) {
-      initializeSocket()
+      return await response.json()
+    } catch (err) {
+      setState(prev => ({
+        ...prev,
+        connectionError: err instanceof Error ? err.message : 'Error sending notification'
+      }))
+      throw err
     }
-    // Cleanup on unmount
-    return () => {
-        if(socket) {
-            disconnect();
-            socket.emit('leave', NOTIFICATION_ROOM);
-        }
+  }, [state.isConnected, state.socket])
+
+  const disconnect = useCallback(() => {
+    if (state.socket) {
+      state.socket.emit('leave', SOCKET_CONFIG.room)
+      state.socket.disconnect()
+      setState(prev => ({
+        ...prev,
+        socket: null,
+        isConnected: false,
+        connectionError: null,
+        socketId: null
+      }))
+      connectionAttempted.current = false
     }
-  }, [socket, initializeSocket, disconnect])
+  }, [state.socket])
+
+  const clearNotifications = useCallback(() => {
+    setState(prev => ({ ...prev, notifications: [] }))
+  }, [])
 
   return (
     <SocketCtx.Provider
       value={{
-        socket,
-        isConnected,
-        connectionError,
-        notifications,
+        ...state,
         sendNotification,
-        socketId,
         disconnect,
+        clearNotifications
       }}
     >
       {children}
     </SocketCtx.Provider>
   )
 }
-
