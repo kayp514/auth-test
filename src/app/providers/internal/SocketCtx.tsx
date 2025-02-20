@@ -2,14 +2,14 @@
 
 import { createContext, useContext } from "react"
 import { Socket } from 'socket.io-client'
-import type { UserStatus } from "@/app/providers/utils/socket"
+import type { UserStatus, PresenceUpdate } from "@/app/providers/utils/socket"
 
 export interface Presence {
   status: UserStatus
   customMessage?: string
 }
 
-export interface PresenceUpdate {
+{/*export interface PresenceUpdate {
   userId: string
   presence: {
     status: UserStatus
@@ -17,7 +17,7 @@ export interface PresenceUpdate {
     lastUpdated: string
     socketId: string
   }
-}
+}*/}
 
 
 export interface Notification {

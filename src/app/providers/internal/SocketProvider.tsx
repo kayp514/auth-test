@@ -9,8 +9,11 @@ import {
   type NotificationType,
   type SocketCtxState,
   type Presence,
-  type PresenceUpdate,
+  //type PresenceUpdate,
 } from "./SocketCtx"
+
+import type {  PresenceUpdate } from "@/app/providers/utils/socket"
+
 
 // Constants
 const SOCKET_CONFIG = {
