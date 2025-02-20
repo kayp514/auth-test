@@ -5,7 +5,7 @@ export type MessageType = 'text' | 'image' | 'file';
 export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
 
 export interface PresenceUpdate {
-  userId: string
+  clientId: string
   presence: {
     status: UserStatus
     customMessage?: string

@@ -1,14 +1,21 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useSocket } from '../internal/SocketCtx'
-import type { UserStatus, PresenceUpdate } from "@/app/providers/utils/socket"
+import type { UserStatus } from "@/app/providers/utils/socket"
 
 
 export function usePresence() {
-  const { setPresence, presenceUpdates  } = useSocket()
+  const { setPresence, presenceState } = useSocket()
 
-  console.log('usePresence hook presenceUpdates:', presenceUpdates) // Debug log
+  console.log('Raw presenceState:', presenceState) // Debug log
+
+  const presenceUpdates = useMemo(() => 
+    Array.from(presenceState.values()), 
+    [presenceState]
+  )
+
+  console.log('Processed presenceUpdates:', presenceUpdates) // Debug log
 
   const updatePresence = useCallback((status: UserStatus, customMessage?: string) => {
     setPresence({ status, customMessage })

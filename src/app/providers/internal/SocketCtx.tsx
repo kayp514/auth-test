@@ -9,16 +9,6 @@ export interface Presence {
   customMessage?: string
 }
 
-{/*export interface PresenceUpdate {
-  userId: string
-  presence: {
-    status: UserStatus
-    customMessage?: string
-    lastUpdated: string
-    socketId: string
-  }
-}*/}
-
 
 export interface Notification {
   id: string
@@ -36,7 +26,7 @@ export interface SocketCtxState {
   connectionError: string | null
   notifications: Notification[]
   socketId: string | null
-  presenceUpdates: PresenceUpdate[]
+  presenceState: Map<string, PresenceUpdate> 
 }
 
 export interface SocketCtxActions {
@@ -53,7 +43,7 @@ const initialState: SocketCtxValue = {
   isConnected: false,
   connectionError: null,
   notifications: [],
-  presenceUpdates: [],
+  presenceState: new Map(), 
   socketId: null,
   sendNotification: async () => {},
   setPresence: () => {},

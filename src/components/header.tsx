@@ -11,7 +11,8 @@ import {
 import { useAuth } from "@/app/providers/hooks/useAuth"
 
 
-import type { UserStatus, TernSecureUser } from "@/app/providers/utils/types"
+import type { UserStatus, TernSecureUser} from "@/app/providers/utils/types"
+import type { PresenceUpdate} from "@/app/providers/utils/socket"
 import { usePresence } from "@/app/providers/hooks/usePresence"
 
 interface HeaderProps {
@@ -24,10 +25,14 @@ export function Header() {
   const { user } = useAuth();
   const { updatePresence, presenceUpdates } = usePresence();
 
-  const currentUserPresence = Array.isArray(presenceUpdates) 
-  ? presenceUpdates.find(u => u.userId === user?.uid)?.presence 
-  : undefined
-  console.log('currentUserPresence', currentUserPresence)
+  console.log('All presenceUpdates:', presenceUpdates); // Debug log
+  console.log('Current user ID:', user?.uid); 
+
+  const currentUserPresence = presenceUpdates.find(
+    (update: PresenceUpdate) => update.clientId === user?.uid
+  )?.presence;
+
+  console.log('Found currentUserPresence:', currentUserPresence);
 
 
   return (
