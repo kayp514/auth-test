@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 import { Bell, User2, LogOut } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SignOutLink } from "@/app/providers/components/sign-out-link-construct-v2"
@@ -9,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/app/providers/hooks/useAuth"
 
 
 import type { UserStatus, TernSecureUser } from "@/app/providers/utils/types"
@@ -19,8 +19,8 @@ interface HeaderProps {
   userStatus: UserStatus;
 }
 
-export function Header({ userData, userStatus }: HeaderProps) {
-
+export function Header() {
+  const { user } = useAuth();
 
   return (
     <div className="flex h-full items-center justify-between px-4">
@@ -34,8 +34,8 @@ export function Header({ userData, userStatus }: HeaderProps) {
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg hover:bg-accent px-2 py-1">
             <div className="relative">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={userData.photoURL} />
-              <AvatarFallback>{userData.email ? userData.email[0].toUpperCase() : 'U'}</AvatarFallback>
+              <AvatarImage src={user?.photoURL || ''} />
+              <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
             <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
                     userStatus === 'online' 

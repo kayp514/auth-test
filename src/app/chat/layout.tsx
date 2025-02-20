@@ -1,13 +1,13 @@
 import { SocketProvider } from '@/app/providers/internal/SocketProvider';
-import { useAuth } from '@/app/providers/hooks/useAuth';
+import { auth } from '@/app/providers/server/auth';
 import { Header } from '@/components/header'
 
-export default function ChatLayout({
+export default async function ChatLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const  { user }  = useAuth();
+  const  { user }  = await auth();
 
   if (!user) return null;  
 
@@ -16,7 +16,7 @@ export default function ChatLayout({
     clientId={user?.uid || ""}
     apiKey="testapikey">
       {children}
-      <Header userData={user} />
+      <Header />
     </SocketProvider>
   );
 }
