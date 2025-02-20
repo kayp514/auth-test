@@ -2,17 +2,13 @@
 
 import { useSocket, type Notification } from '@/app/providers/internal/SocketCtx';
 import { NotificationSender } from '@/components/notifications';
-import { Header } from '@/components/header';
-import { useAuth } from '@/app/providers/hooks/useAuth';
-import type { UserData } from '@/app/providers/utils/types';
+
 
 export default function ChatPage() {
-  const { user } = useAuth();
   const { notifications, isConnected  } = useSocket();
 
   return (
     <div className="container mx-auto p-4">
-      <Header userData={user} userStatus={userStatus} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <NotificationSender className="md:sticky md:top-4" />
         
