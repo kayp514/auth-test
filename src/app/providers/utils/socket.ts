@@ -4,6 +4,16 @@ export type ChatStatus = 'sent' | 'delivered' | 'read';
 export type MessageType = 'text' | 'image' | 'file';
 export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
 
+export interface PresenceUpdate {
+  userId: string
+  presence: {
+    status: UserStatus
+    customMessage?: string
+    lastUpdated: string
+    socketId: string
+  }
+}
+
 
 export interface StatusUpdate {
     userId: string;

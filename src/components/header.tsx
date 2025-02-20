@@ -19,18 +19,16 @@ interface HeaderProps {
   userStatus: UserStatus;
 }
 
-interface PresenceUpdate {
-    userId: string
-    presence: {
-      status: UserStatus
-      lastUpdated: string
-      socketId: string
-    }
-  }
 
 export function Header() {
   const { user } = useAuth();
-  const { updatePresence } = usePresence();
+  const { updatePresence, presenceUpdates } = usePresence();
+
+  const currentUserPresence = Array.isArray(presenceUpdates) 
+  ? presenceUpdates.find(u => u.userId === user?.uid)?.presence 
+  : undefined
+  console.log('currentUserPresence', currentUserPresence)
+
 
   return (
     <div className="flex h-full items-center justify-between px-4">
@@ -47,9 +45,12 @@ export function Header() {
               <AvatarImage src={user?.photoURL || ''} />
               <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
-            <span
-                  onClick={() => updatePresence('online')}
-                  className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500"
+            <span 
+                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
+                    currentUserPresence?.status === 'online' ? 'bg-green-500' : 
+                    currentUserPresence?.status === 'busy' ? 'bg-yellow-500' : 
+                    'bg-gray-400'
+                  }`}
                 />
               </div>
             </DropdownMenuTrigger>

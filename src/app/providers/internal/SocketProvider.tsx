@@ -8,7 +8,8 @@ import {
   type Notification, 
   type NotificationType,
   type SocketCtxState,
-  type Presence
+  type Presence,
+  type PresenceUpdate,
 } from "./SocketCtx"
 
 // Constants
@@ -33,6 +34,7 @@ interface SocketEventHandlers {
   onConnectError: (error: Error) => void
   onRecentNotification: (data: unknown) => void
   onNotification: (notification: Notification) => void
+  onPresenceUpdate: (updates: PresenceUpdate[]) => void
 }
 
 // Helper functions
@@ -61,12 +63,14 @@ const validateNotificationData = (data: unknown): data is { notifications: Notif
 }
 
 export function SocketProvider({ children, clientId, apiKey }: SocketProviderProps) {
+  const [presenceData, setPresenceData] = useState<PresenceUpdate[]>([])
   const [state, setState] = useState<SocketCtxState>({
     socket: null,
     isConnected: false,
     connectionError: null,
     notifications: [],
     socketId: null,
+    presenceUpdates: [] 
   })
   
   const connectionAttempted = useRef(false)
@@ -81,24 +85,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         connectionError: null,
         socketId: socketInstance.id ?? null
       }))
-
-      socketInstance.emit('set_presence', {
-        status: 'online',
-        customMessage: 'In a meeting'
-      });
-
-      socketInstance.emit('get_presence');
-
-      socketInstance.emit('create_private_chat', {
-        targetClientId: clientId
-      });
-
-      socketInstance.emit('get_rooms');
-
-      socketInstance.emit('send_message', {
-        roomId: 'private:testapikey:Jn9iyvPRhmbsz2C3D63k1FyMYdV2_Jn9iyvPRhmbsz2C3D63k1FyMYdV2',
-        message: 'Hello!'
-      });
 
       //socketInstance.emit('join', SOCKET_CONFIG.room)
     },
@@ -138,6 +124,14 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         ...prev,
         notifications: [...prev.notifications, notification]
       }))
+    },
+
+    onPresenceUpdate: (updates: PresenceUpdate[]) => {
+      console.log('Presence updates received:', updates)
+      setState(prev => ({
+        ...prev,
+        presenceUpdates: Array.isArray(updates) ? updates : [updates]  // Handle both array and single update
+      }))
     }
   }), [apiKey, clientId])
 
@@ -157,6 +151,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       socketInstance.on("connect_error", handlers.onConnectError)
       socketInstance.on("recent_notification", handlers.onRecentNotification)
       socketInstance.on("notification", handlers.onNotification)
+      socketInstance.on('presence_updated', handlers.onPresenceUpdate) 
 
       setState(prev => ({ ...prev, socket: socketInstance }))
 
@@ -167,6 +162,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         socketInstance.off("connect_error", handlers.onConnectError)
         socketInstance.off("recent_notification", handlers.onRecentNotification)
         socketInstance.off("notification", handlers.onNotification)
+        socketInstance.off('presence_updated', handlers.onPresenceUpdate)
         socketInstance.disconnect()
         connectionAttempted.current = false
       }
@@ -248,10 +244,8 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
   }, [state.socket, state.isConnected])
 
   const getPresence = useCallback(() => {
-    if (state.socket && state.isConnected) {
-      state.socket.emit('get_presence')
-    }
-  }, [state.socket, state.isConnected])
+    return state.presenceUpdates 
+  }, [state.presenceUpdates])
 
   return (
     <SocketCtx.Provider
