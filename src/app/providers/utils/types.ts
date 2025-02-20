@@ -139,7 +139,6 @@ export interface BaseUser {
   email: string | null
   emailVerified?: boolean
   authTime?: number
-  disabled?: boolean
 }
 
 

@@ -9,6 +9,8 @@ export interface AuthResult {
 }
 
 
+
+
   /**
    * Get the current authenticated user from the session or token
    */

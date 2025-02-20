@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 
-import type { UserStatus, UserData } from "@/app/providers/utils/types"
+import type { UserStatus, TernSecureUser } from "@/app/providers/utils/types"
 
 
 interface HeaderProps {
-  userData: Partial<UserData>;
+  userData: TernSecureUser;
   userStatus: UserStatus;
 }
 
@@ -34,7 +34,7 @@ export function Header({ userData, userStatus }: HeaderProps) {
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg hover:bg-accent px-2 py-1">
             <div className="relative">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={userData.avatar} />
+              <AvatarImage src={userData.photoURL} />
               <AvatarFallback>{userData.email ? userData.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
             <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
