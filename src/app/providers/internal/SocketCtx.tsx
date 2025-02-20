@@ -2,6 +2,12 @@
 
 import { createContext, useContext } from "react"
 import { Socket } from 'socket.io-client'
+import type { UserStatus } from "@/app/providers/utils/socket"
+
+export interface Presence {
+  status: UserStatus
+  customMessage?: string
+}
 
 export interface Notification {
   id: string
@@ -23,6 +29,8 @@ export interface SocketCtxState {
 
 export interface SocketCtxActions {
   sendNotification: (type: string, message: string, data?: Record<string, unknown>) => Promise<void>
+  setPresence: (presence: Presence) => void
+  getPresence: () => void
   disconnect: () => void
   clearNotifications: () => void
 }
@@ -36,6 +44,8 @@ const initialState: SocketCtxValue = {
   notifications: [],
   socketId: null,
   sendNotification: async () => {},
+  setPresence: () => {},
+  getPresence: () => {},
   disconnect: () => {},
   clearNotifications: () => {}
 }

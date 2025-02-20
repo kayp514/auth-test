@@ -8,6 +8,7 @@ import {
   type Notification, 
   type NotificationType,
   type SocketCtxState,
+  type Presence
 } from "./SocketCtx"
 
 // Constants
@@ -240,13 +241,27 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     setState(prev => ({ ...prev, notifications: [] }))
   }, [])
 
+  const setPresence = useCallback((presence: Presence) => {
+    if (state.socket && state.isConnected) {
+      state.socket.emit('set_presence', presence)
+    }
+  }, [state.socket, state.isConnected])
+
+  const getPresence = useCallback(() => {
+    if (state.socket && state.isConnected) {
+      state.socket.emit('get_presence')
+    }
+  }, [state.socket, state.isConnected])
+
   return (
     <SocketCtx.Provider
       value={{
         ...state,
         sendNotification,
         disconnect,
-        clearNotifications
+        clearNotifications,
+        setPresence,
+        getPresence
       }}
     >
       {children}

@@ -12,15 +12,25 @@ import { useAuth } from "@/app/providers/hooks/useAuth"
 
 
 import type { UserStatus, TernSecureUser } from "@/app/providers/utils/types"
-
+import { usePresence } from "@/app/providers/hooks/usePresence"
 
 interface HeaderProps {
   userData: TernSecureUser;
   userStatus: UserStatus;
 }
 
+interface PresenceUpdate {
+    userId: string
+    presence: {
+      status: UserStatus
+      lastUpdated: string
+      socketId: string
+    }
+  }
+
 export function Header() {
   const { user } = useAuth();
+  const { updatePresence } = usePresence();
 
   return (
     <div className="flex h-full items-center justify-between px-4">
@@ -37,28 +47,36 @@ export function Header() {
               <AvatarImage src={user?.photoURL || ''} />
               <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
-            <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
-                    userStatus === 'online' 
-                      ? 'bg-green-500' 
-                      : userStatus === 'busy'
-                      ? 'bg-yellow-500'
-                      : 'bg-gray-400'
-                  }`} />
-            </div>
-            {/* <span className="text-sm font-medium">{userData.displayName || userData.email}</span> */}  
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuItem>
-              <User2 className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <LogOut className="mr-2 h-4 w-4" />
-              <SignOutLink />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            <span
+                  onClick={() => updatePresence('online')}
+                  className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500"
+                />
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[200px]">
+              <DropdownMenuItem onClick={() => updatePresence('online')}>
+                <div className="h-2 w-2 rounded-full bg-green-500 mr-2" />
+                Online
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => updatePresence('busy')}>
+                <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2" />
+                Busy
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => updatePresence('away')}>
+                <div className="h-2 w-2 rounded-full bg-gray-500 mr-2" />
+                Away
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <User2 className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <LogOut className="mr-2 h-4 w-4" />
+                <SignOutLink />
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   )
