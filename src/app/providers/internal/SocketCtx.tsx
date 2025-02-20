@@ -42,7 +42,6 @@ export interface SocketCtxState {
 export interface SocketCtxActions {
   sendNotification: (type: string, message: string, data?: Record<string, unknown>) => Promise<void>
   setPresence: (presence: Presence) => void
-  getPresence: () => PresenceUpdate[]
   disconnect: () => void
   clearNotifications: () => void
 }
@@ -58,7 +57,6 @@ const initialState: SocketCtxValue = {
   socketId: null,
   sendNotification: async () => {},
   setPresence: () => {},
-  getPresence: () => [], 
   disconnect: () => {},
   clearNotifications: () => {}
 }

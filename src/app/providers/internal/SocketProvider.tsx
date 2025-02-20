@@ -133,7 +133,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         presenceUpdates: Array.isArray(updates) ? updates : [updates]  // Handle both array and single update
       }))
     }
-  }), [apiKey, clientId])
+  }), [])
 
   // Socket initialization
   useEffect(() => {
@@ -243,9 +243,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     }
   }, [state.socket, state.isConnected])
 
-  const getPresence = useCallback(() => {
-    return state.presenceUpdates 
-  }, [state.presenceUpdates])
 
   return (
     <SocketCtx.Provider
@@ -255,7 +252,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         disconnect,
         clearNotifications,
         setPresence,
-        getPresence
       }}
     >
       {children}
