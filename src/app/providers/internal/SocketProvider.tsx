@@ -9,7 +9,7 @@ import {
   type NotificationType,
   type SocketCtxState,
   type Presence,
-  //type PresenceUpdate,
+  type ChatMessage
 } from "./SocketCtx"
 
 import type {  PresenceUpdate } from "@/app/providers/utils/socket"
@@ -41,6 +41,7 @@ interface SocketEventHandlers {
   onPresenceEnter: (data: PresenceUpdate) => void
   onPresenceLeave: (data: { clientId: string }) => void
   onPresenceSync: (updates: PresenceUpdate[]) => void
+  onPrivateMessage: (messageData: ChatMessage) => void
 }
 
 // Helper functions
@@ -75,7 +76,8 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     connectionError: null,
     notifications: [],
     socketId: null,
-    presenceState: new Map()
+    presenceState: new Map(),
+    messages: []
   })
   
   const connectionAttempted = useRef(false)
@@ -169,6 +171,14 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       })
     },
 
+    onPrivateMessage: (messageData: ChatMessage) => {
+      console.log('Private message received:', messageData);
+       setState(prev => ({
+        ...prev,
+         messages: [...(prev.messages || []), messageData]
+      }))
+    },
+
   }), [clientId])
 
   // Socket initialization
@@ -191,6 +201,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       socketInstance.on("presence:leave", handlers.onPresenceLeave)
       socketInstance.on("recent_notification", handlers.onRecentNotification)
       socketInstance.on("notification", handlers.onNotification)
+      socketInstance.on("chat:private", handlers.onPrivateMessage)
 
       setState(prev => ({ ...prev, socket: socketInstance }))
 
@@ -205,6 +216,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         socketInstance.off("presence:leave", handlers.onPresenceLeave)
         socketInstance.off("recent_notification", handlers.onRecentNotification)
         socketInstance.off("notification", handlers.onNotification)
+        socketInstance.off("chat:private", handlers.onPrivateMessage)
         socketInstance.disconnect()
         connectionAttempted.current = false
       }

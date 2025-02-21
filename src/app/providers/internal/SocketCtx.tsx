@@ -9,6 +9,14 @@ export interface Presence {
   customMessage?: string
 }
 
+export interface ChatMessage {
+  roomId: string
+  message: string
+  senderId: string
+  timestamp: Date
+  apiKey: string
+}
+
 
 export interface Notification {
   id: string
@@ -27,6 +35,7 @@ export interface SocketCtxState {
   notifications: Notification[]
   socketId: string | null
   presenceState: Map<string, PresenceUpdate> 
+  messages: ChatMessage[]
 }
 
 export interface SocketCtxActions {
@@ -45,10 +54,12 @@ const initialState: SocketCtxValue = {
   notifications: [],
   presenceState: new Map(), 
   socketId: null,
+  messages: [],
   sendNotification: async () => {},
   setPresence: () => {},
   disconnect: () => {},
   clearNotifications: () => {}
+
 }
 
 export const SocketCtx = createContext<SocketCtxValue>(initialState)
