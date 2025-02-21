@@ -3,12 +3,12 @@ import { prisma } from '../prisma';
 import type { DatabaseUserInput } from './types';
 
 
-export async function getUser(id: string) {
-  console.log("1. getUser called with id:", id)
+export async function getUser(uid: string) {
+  console.log("1. getUser called with id:", uid)
   try {
     console.log("2. Attempting prisma.user.findUnique")
     const dbUser = await prisma.user.findUnique({
-      where: { id },
+      where: { uid },
       select : {
         id: true,
         email: true,
