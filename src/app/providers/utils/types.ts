@@ -3,7 +3,7 @@ import { ErrorCode, ERRORS } from './errors'
 
 
 
-export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown';
+export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'unknown';
 
 
 /**

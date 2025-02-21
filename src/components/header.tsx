@@ -51,27 +51,33 @@ export function Header() {
               <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
             <span 
-                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
-                    currentUserPresence?.status === 'online' ? 'bg-green-500' : 
-                    currentUserPresence?.status === 'busy' ? 'bg-yellow-500' : 
-                    'bg-gray-400'
-                  }`}
-                />
+              className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${
+                currentUserPresence?.status === 'online' ? 'bg-green-500' : 
+                currentUserPresence?.status === 'busy' ? 'bg-red-500' : 
+                currentUserPresence?.status === 'away' ? 'bg-yellow-500' :
+                currentUserPresence?.status === 'offline' ? 'bg-gray-400' :
+                'bg-slate-300' // for 'unknown' status
+              }`}
+            />
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[200px]">
-              <DropdownMenuItem onClick={() => updatePresence('online')}>
-                <div className="h-2 w-2 rounded-full bg-green-500 mr-2" />
-                Online
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => updatePresence('busy')}>
-                <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2" />
-                Busy
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => updatePresence('away')}>
-                <div className="h-2 w-2 rounded-full bg-gray-500 mr-2" />
-                Away
-              </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => updatePresence('online')}>
+            <div className="h-2 w-2 rounded-full bg-green-500 mr-2" />
+            Online
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updatePresence('busy')}>
+            <div className="h-2 w-2 rounded-full bg-red-500 mr-2" />
+            Do not disturb
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updatePresence('away')}>
+            <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2" />
+            Away
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => updatePresence('offline')}>
+            <div className="h-2 w-2 rounded-full bg-gray-400 mr-2" />
+            Offline
+          </DropdownMenuItem>
               <DropdownMenuItem>
                 <User2 className="mr-2 h-4 w-4" />
                 Profile

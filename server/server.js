@@ -50,8 +50,8 @@ const roomMembers = new Map();
 const clientRooms = new Map();
 const clientPresence = new Map();
 
-const HEARTBEAT_INTERVAL = 30000;
-const PRESENCE_TIMEOUT = 60000;
+//const HEARTBEAT_INTERVAL = 30000;
+//const PRESENCE_TIMEOUT = 60000;
 
 // Utility function to mask sensitive data
 const maskSensitive = (text, showLength = 4) => {
@@ -103,7 +103,7 @@ io.on("connection", (socket) => {
           status: 'online',
           customMessage: '',
           lastUpdated: new Date().toISOString(),
-          lastHeartbeat: Date.now(),
+          //lastHeartbeat: Date.now(),
           socketId: socket.id
         };
         
@@ -152,15 +152,13 @@ io.on("connection", (socket) => {
         // socket.emit('presence:update', presenceUpdate); // Send to sender
       });
 
-
-  // Handle heartbeat
-  socket.on('presence:heartbeat', () => {
-    const presence = clientPresence.get(clientId);
-    if (presence) {
-      presence.lastHeartbeat = Date.now();
-      presence.lastUpdated = new Date().toISOString();
-    }
-  });
+      socket.on('presence:heartbeat', () => {
+        const presence = clientPresence.get(clientId);
+        if (presence) {
+          presence.lastHeartbeat = Date.now();
+          presence.lastUpdated = new Date().toISOString();
+        }
+      });
 
 
       console.log(`Client ${clientId} registered with key ${apiKey}`);
@@ -479,16 +477,23 @@ io.on("connection", (socket) => {
   enterPresence();
 });
 
-const cleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [clientId, presence] of clientPresence.entries()) {
-    if (now - presence.lastHeartbeat > PRESENCE_TIMEOUT * 2) {
-      clientPresence.delete(clientId);
-      console.log(`CleanupInterval: Client ${clientId} timed out`);
-      io.emit('presence:leave', { clientId });
+// hearbeat function will be called when needed
+{/*function startPresenceCleanup() {
+  console.log('Starting presence cleanup interval');
+  return setInterval(() => {
+    const now = Date.now();
+    for (const [clientId, presence] of clientPresence.entries()) {
+      // Only cleanup if last heartbeat is really old (2x timeout)
+      if (now - presence.lastHeartbeat > PRESENCE_TIMEOUT * 2) {
+        console.log(`CleanupInterval: Client ${clientId} timed out (Last heartbeat: ${new Date(presence.lastHeartbeat).toISOString()})`);
+        clientPresence.delete(clientId);
+        io.emit('presence:leave', { clientId });
+      }
     }
-  }
-}, PRESENCE_TIMEOUT);
+  }, PRESENCE_TIMEOUT);
+}*/}
+
+//const cleanupInterval = startPresenceCleanup();
 
 
 // REST API endpoints
@@ -606,7 +611,7 @@ httpServer.listen(PORT, () => {
 });
 
 process.on('SIGTERM', () => {
-  clearInterval(cleanupInterval);
+  //clearInterval(cleanupInterval);
   console.log('SIGTERM received. Closing server...');
   httpServer.close(() => {
     redis.quit();
