@@ -18,17 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NewMessageDialog } from "@/components/new-message-dialog"
 import { SignOutLink } from "@/app/providers/components/sign-out-link-construct-v2"
 import { useAuth } from "@/app/providers/hooks/useAuth"
-import type { UserStatus, TernSecureUser} from "@/app/providers/utils/types"
 import type { PresenceUpdate} from "@/app/providers/utils/socket"
 import { usePresence } from "@/app/providers/hooks/usePresence"
-
-
-interface User {
-  id: string
-  name: string
-  email: string
-  avatar?: string
-}
+import type { SearchUser as User } from '@/lib/db/types'
 
 interface Message {
   id: string
@@ -40,6 +32,7 @@ interface Message {
 export default function ChatPage() {
   const { user } = useAuth();
   const { updatePresence, presenceUpdates } = usePresence();
+  const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [message, setMessage] = useState('')
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
@@ -50,28 +43,12 @@ export default function ChatPage() {
   const currentUserPresence = presenceUpdates.find(
     (update: PresenceUpdate) => update.clientId === user?.uid
   )?.presence;
-  
-
-  // Mock users for search - replace with actual data
-  const users: User[] = [
-    { 
-      id: '1', 
-      name: 'Jane Smith', 
-      email: 'jane@example.com',
-      avatar: '/placeholder.svg'
-    },
-    { 
-      id: '2', 
-      name: 'Bob Johnson', 
-      email: 'bob@example.com',
-      avatar: '/placeholder.svg'
-    },
-  ]
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  
 
   const handleNewMessage = () => {
     if (newMessageRecipient && newMessageContent.trim()) {
@@ -130,15 +107,15 @@ export default function ChatPage() {
             <div className="space-y-2 pr-4">
               {filteredUsers.map((chatUser) => {
                 const userPresence = presenceUpdates.find(
-                  (update: PresenceUpdate) => update.clientId === chatUser.id
+                  (update: PresenceUpdate) => update.clientId === chatUser.uid
                 )?.presence;
                 
                 return (
                   <button
-                    key={chatUser.id}
+                    key={chatUser.uid}
                     onClick={() => setSelectedUser(chatUser)}
                     className={`w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-accent ${
-                      selectedUser?.id === chatUser.id ? 'bg-accent' : ''
+                      selectedUser?.uid === chatUser.uid ? 'bg-accent' : ''
                     }`}
                   >
                     <div className="relative">
@@ -238,10 +215,10 @@ export default function ChatPage() {
                   </Avatar>
                   <span 
                     className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background ${
-                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.id)?.presence?.status === 'online' ? 'bg-green-500' : 
-                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.id)?.presence?.status === 'busy' ? 'bg-red-500' : 
-                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.id)?.presence?.status === 'away' ? 'bg-yellow-500' :
-                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.id)?.presence?.status === 'offline' ? 'bg-gray-400' :
+                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.uid)?.presence?.status === 'online' ? 'bg-green-500' : 
+                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.uid)?.presence?.status === 'busy' ? 'bg-red-500' : 
+                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.uid)?.presence?.status === 'away' ? 'bg-yellow-500' :
+                      presenceUpdates.find((update: PresenceUpdate) => update.clientId === selectedUser.uid)?.presence?.status === 'offline' ? 'bg-gray-400' :
                       'bg-slate-300'
                     }`}
                   />

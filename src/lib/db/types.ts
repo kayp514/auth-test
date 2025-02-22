@@ -38,5 +38,13 @@ export interface SignUpResult {
       code: string
       message: string
     }
-  }
-  
+}
+
+
+
+export interface SearchUser {
+    uid: string
+    name: string
+    email: string
+    avatar?: string
+}

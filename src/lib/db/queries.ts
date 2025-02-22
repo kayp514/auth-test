@@ -1,4 +1,5 @@
-import 'server-only';
+'user server'
+
 import { prisma } from '../prisma';
 import type { DatabaseUserInput } from './types';
 
@@ -49,6 +50,56 @@ export async function getUser(uid: string) {
     }
   }
 }
+
+export async function searchUsers(query: string, limit: number = 10) {
+    try {
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            {
+              name: {
+                contains: query,
+                mode: 'insensitive', // Case-insensitive search
+              },
+            },
+            {
+              email: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          uid: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+        take: limit, // Limit results
+        orderBy: {
+          name: 'asc', // Order by name
+        },
+      });
+  
+      return {
+        success: true,
+        users,
+      };
+    } catch (error) {
+      console.error('Error searching users:', error);
+      return {
+        success: false,
+        error: {
+          code: 'SEARCH_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to search users',
+        },
+      };
+    }
+  }
+
+
 
 export async function createUser(data: DatabaseUserInput | null) {
   if (!data) {
