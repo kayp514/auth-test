@@ -14,13 +14,9 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, X } from 'lucide-react'
 import { Textarea } from "@/components/ui/textarea"
+import type { SearchUser as User } from '@/lib/db/types'
+import { useSearch } from '@/lib/hooks/use-search'
 
-interface User {
-  id: string
-  name: string
-  email: string
-  avatar?: string
-}
 
 interface NewMessageDialogProps {
   open: boolean
@@ -29,25 +25,10 @@ interface NewMessageDialogProps {
 }
 
 export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialogProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [message, setMessage] = useState('')
+  const { users, searchQuery, isPending, updateSearchQuery } = useSearch()
 
-  // Mock users - replace with your actual user data
-  const users: User[] = [
-    { 
-      id: '1', 
-      name: 'Jane Smith', 
-      email: 'jane@example.com',
-      avatar: '/placeholder.svg'
-    },
-    { 
-      id: '2', 
-      name: 'Bob Johnson', 
-      email: 'bob@example.com',
-      avatar: '/placeholder.svg'
-    },
-  ]
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -60,7 +41,6 @@ export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialo
       onOpenChange(false)
       setSelectedUser(null)
       setMessage('')
-      setSearchQuery('')
     }
   }
 
@@ -78,7 +58,7 @@ export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialo
               <Input
                 placeholder="Search users..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => updateSearchQuery(e.target.value)}
                 className="w-full"
               />
             </div>
@@ -106,7 +86,7 @@ export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialo
                 <div className="p-2 space-y-2">
                   {filteredUsers.map((user) => (
                     <Button
-                      key={user.id}
+                      key={user.uid}
                       variant="ghost"
                       className="w-full justify-start px-2"
                       onClick={() => setSelectedUser(user)}
@@ -151,7 +131,6 @@ export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialo
               onOpenChange(false)
               setSelectedUser(null)
               setMessage('')
-              setSearchQuery('')
             }}
           >
             Cancel

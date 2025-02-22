@@ -21,6 +21,7 @@ import { useAuth } from "@/app/providers/hooks/useAuth"
 import type { PresenceUpdate} from "@/app/providers/utils/socket"
 import { usePresence } from "@/app/providers/hooks/usePresence"
 import type { SearchUser as User } from '@/lib/db/types'
+import { useSearch } from "@/lib/hooks/use-search"
 
 interface Message {
   id: string
@@ -32,13 +33,12 @@ interface Message {
 export default function ChatPage() {
   const { user } = useAuth();
   const { updatePresence, presenceUpdates } = usePresence();
-  const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [message, setMessage] = useState('')
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false)
   const [newMessageRecipient, setNewMessageRecipient] = useState<User | null>(null)
   const [newMessageContent, setNewMessageContent] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const { users, searchQuery, isPending, updateSearchQuery } = useSearch()
 
   const currentUserPresence = presenceUpdates.find(
     (update: PresenceUpdate) => update.clientId === user?.uid
@@ -57,7 +57,6 @@ export default function ChatPage() {
       setIsNewMessageOpen(false)
       setNewMessageRecipient(null)
       setNewMessageContent('')
-      setSearchQuery('')
     }
   }
 

@@ -16,6 +16,11 @@ interface SearchUsersProps {
   export function SearchUsers({ onSelectUser, selectedUser }: SearchUsersProps) {
   const { users, searchQuery, isPending, updateSearchQuery } = useSearch()
 
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
 
   return (
     <div className="relative">
@@ -38,7 +43,7 @@ interface SearchUsersProps {
              </div>
             ) : (
               <>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <Button
                     key={user.uid}
                     onClick={() => onSelectUser(user)}
