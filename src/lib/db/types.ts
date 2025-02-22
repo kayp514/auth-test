@@ -53,7 +53,7 @@ export interface SearchUser {
 export interface SearchSuccess {
     success: true
     users: SearchUser[]
-  }
+}
   
 export interface SearchError {
     success: false

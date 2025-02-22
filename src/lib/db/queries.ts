@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma';
-import type { DatabaseUserInput, SearchResult } from './types';
+import type { DatabaseUserInput, SearchResult, SearchUser} from './types';
 
 
 export async function getUser(uid: string) {
@@ -53,7 +53,7 @@ export async function getUser(uid: string) {
 
 export async function searchUsers(query: string, limit: number = 10): Promise<SearchResult> {
     try {
-      const users = await prisma.users.findMany({
+      const dbUser = await prisma.users.findMany({
         where: {
           OR: [
             {
@@ -81,7 +81,12 @@ export async function searchUsers(query: string, limit: number = 10): Promise<Se
   
       return {
         success: true,
-        users,
+        users: dbUser.map((user: { uid: string; name: string | null; email: string; avatar: string | null }) => ({
+            uid: user.uid,
+            name: user.name || user.email,
+            email: user.email,
+            avatar: user.avatar ?? undefined,
+        })),
       };
     } catch (error) {
       console.error('Error searching users:', error);
