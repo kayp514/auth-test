@@ -23,7 +23,7 @@ export default async function ChatLayout({
     <div className={`${inter.variable} font-sans antialiased`}>
     <SocketProvider
     clientId={user?.uid || ""}
-    apiKey={API_KEY ?? ''}>
+    apiKey={API_KEY ?? 'fake_api_key'}>
       {children}
     </SocketProvider>
     </div>
