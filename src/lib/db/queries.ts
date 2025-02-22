@@ -1,4 +1,4 @@
-'user server'
+'use server'
 
 import { prisma } from '../prisma';
 import type { DatabaseUserInput } from './types';
