@@ -3,30 +3,16 @@
 import { createUser, searchUsers } from "@/lib/db/queries"
 import { unstable_cache } from 'next/cache'
 import { prisma } from "@/lib/prisma"
-import type { FirebaseAuthUser, DatabaseUserInput, SignUpResult } from "@/lib/db/types"
+import type { 
+  FirebaseAuthUser,
+  DatabaseUserInput,
+  SignUpResult ,
+  SearchError, 
+  SearchSuccess
+} from "@/lib/db/types"
 
 const DEFAULT_TENANT_ID = 'default'
 
-interface User {
-  id: string
-  uid: string
-  name: string
-  email: string
-  image?: string
-}
-
-interface SearchSuccess {
-  success: true
-  users: User[]
-}
-
-interface SearchError {
-  success: false
-  error: {
-    code: string
-    message: string
-  }
-}
 
 type SearchResult = SearchSuccess | SearchError
 

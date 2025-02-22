@@ -1,7 +1,7 @@
 'use server'
 
-import { prisma } from '../prisma';
-import type { DatabaseUserInput } from './types';
+import { prisma } from '@/lib/prisma';
+import type { DatabaseUserInput, SearchResult } from './types';
 
 
 export async function getUser(uid: string) {
@@ -51,7 +51,7 @@ export async function getUser(uid: string) {
   }
 }
 
-export async function searchUsers(query: string, limit: number = 10) {
+export async function searchUsers(query: string, limit: number = 10): Promise<SearchResult> {
     try {
       const users = await prisma.user.findMany({
         where: {
@@ -71,16 +71,12 @@ export async function searchUsers(query: string, limit: number = 10) {
           ],
         },
         select: {
-          id: true,
           uid: true,
           name: true,
           email: true,
-          image: true,
+          avatar: true,
         },
-        take: limit, // Limit results
-        orderBy: {
-          name: 'asc', // Order by name
-        },
+        take: limit,
       });
   
       return {

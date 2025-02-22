@@ -48,3 +48,19 @@ export interface SearchUser {
     email: string
     avatar?: string
 }
+
+  
+export interface SearchSuccess {
+    success: true
+    users: SearchUser[]
+  }
+  
+export interface SearchError {
+    success: false
+    error: {
+      code: string
+      message: string
+    }
+  }
+
+export type SearchResult = SearchSuccess | SearchError
