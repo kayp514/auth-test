@@ -2,19 +2,11 @@
 
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from 'sonner'
-import { useState, useCallback, useEffect, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Search } from 'lucide-react'
-import { searchUsersAction } from "@/app/actions/users"
-import { useDebounce } from "@/app/hooks/use-debounce"
+import { useSearch } from "@/lib/hooks/use-search"
+import type { SearchUser as User } from '@/lib/db/types'
 
-export interface User {
-  uid: string
-  name: string
-  email: string
-  avatar?: string
-}
 
 interface SearchUsersProps {
   onSelectUser: (user: User) => void
@@ -22,37 +14,8 @@ interface SearchUsersProps {
 }
 
   export function SearchUsers({ onSelectUser, selectedUser }: SearchUsersProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isFocused, setIsFocused] = useState(false)
-  const [isPending, startTransition] = useTransition()
-  const [users, setUsers] = useState<User[]>([])
-  const debouncedSearch = useDebounce(searchQuery, 300)
+  const { users, searchQuery, isPending, updateSearchQuery } = useSearch()
 
-
-  useEffect(() => {
-    if (debouncedSearch.length === 0) {
-      setUsers([])
-      return
-    }
-
-    startTransition(async () => {
-      try {
-        const result = await searchUsersAction(debouncedSearch)
-        
-        if (result.success) {
-          setUsers(result.users)
-        } else {
-          // Handle error with toast
-          toast.error(result.error.message)
-          setUsers([])
-        }
-      } catch (error) {
-        console.error('Failed to fetch users:', error)
-        toast.error('Failed to search users')
-        setUsers([])
-      }
-    })
-  }, [debouncedSearch, toast])
 
   return (
     <div className="relative">
@@ -61,16 +24,12 @@ interface SearchUsersProps {
         <Input
           placeholder="Search users..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => {
-            setTimeout(() => setIsFocused(false), 200)
-          }}
+          onChange={(e) => updateSearchQuery(e.target.value)}
           className="pl-8"
         />
       </div>
 
-      {searchQuery && isFocused && (
+      {searchQuery && (
         <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg">
           <div className="p-2 space-y-2">
             {isPending ? (
@@ -82,11 +41,7 @@ interface SearchUsersProps {
                 {users.map((user) => (
                   <Button
                     key={user.uid}
-                    onClick={() => {
-                      onSelectUser(user)
-                      setSearchQuery('')
-                      setIsFocused(false)
-                    }}
+                    onClick={() => onSelectUser(user)}
                     variant="ghost"
                     className={`w-full justify-start px-2 ${
                       selectedUser?.uid === user.uid ? 'bg-accent' : ''

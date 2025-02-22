@@ -8,10 +8,10 @@ export async function getUser(uid: string) {
   console.log("1. getUser called with id:", uid)
   try {
     console.log("2. Attempting prisma.user.findUnique")
-    const dbUser = await prisma.user.findUnique({
+    const dbUser = await prisma.users.findUnique({
       where: { uid },
       select : {
-        id: true,
+        uid: true,
         email: true,
         emailVerified: true,
       }
@@ -53,7 +53,7 @@ export async function getUser(uid: string) {
 
 export async function searchUsers(query: string, limit: number = 10): Promise<SearchResult> {
     try {
-      const users = await prisma.user.findMany({
+      const users = await prisma.users.findMany({
         where: {
           OR: [
             {
@@ -118,7 +118,7 @@ export async function createUser(data: DatabaseUserInput | null) {
         updatedAt: new Date(),
         active: true,
       }
-   const user =  await prisma.user.create({
+   const user =  await prisma.users.create({
       data: sanitizedData,
       select: {
         uid: true,
