@@ -3,7 +3,7 @@ import type { User } from '@/lib/db/types'
 export type ChatStatus = 'sent' | 'delivered' | 'read'
 export type MessageType = 'text' | 'image' | 'file'
 export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown'
-export type MessageStatus = 'pending' | 'delivered' | 'error'
+export type MessageStatus = 'pending' | 'delivered' | 'sent' | 'error'
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type StorageType = 'localStorage' | 'sessionStorage' | 'none';
 

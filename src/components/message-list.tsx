@@ -5,14 +5,38 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useChat } from "@/app/providers/internal/ChatCtx"
 import type { User } from '@/lib/db/types'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  ClockIcon,
+  CheckIcon,
+  CheckCheckIcon,
+  AlertCircleIcon,
+} from 'lucide-react'
 
 interface MessageListProps {
   currentUserId: string
   selectedUser: User | null
 }
 
+const MessageStatusIndicator = ({ messageId }: { messageId: string }) => {
+  const { getMessageStatus } = useChat()
+  const status = getMessageStatus(messageId)
+  
+  switch (status) {
+    case 'pending':
+      return <ClockIcon className="h-3 w-3 text-muted-foreground" />
+    case 'sent':
+      return <CheckIcon className="h-3 w-3 text-muted-foreground" />
+    case 'delivered':
+      return <CheckCheckIcon className="h-3 w-3 text-muted-foreground" />
+    case 'error':
+      return <AlertCircleIcon className="h-3 w-3 text-red-500" />
+    default:
+      return null
+  }
+}
+
 export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
-  const { messages } = useChat()
+  const { messages, deliveryStatus } = useChat()
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
@@ -84,9 +108,16 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
                 }`}
               >
                 <p className="text-sm">{msg.message}</p>
-                <span className="text-xs opacity-70 mt-1 block">
+                <div className="flex items-center justify-between mt-1 space-x-2">
+                <span className="text-xs opacity-70">
                   {formatMessageTime(msg.timestamp)}
                 </span>
+                {msg.fromId === currentUserId && (
+                  <span className="flex items-center">
+                  <MessageStatusIndicator messageId={msg.messageId} />
+                  </span>
+                )}
+              </div>
               </div>
             </div>
           </div>

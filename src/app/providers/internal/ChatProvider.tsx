@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback} from 'react'
 import { useSocket } from './SocketCtx'
 import { ChatCtx } from './ChatCtx'
-import type { ChatMessage, ChatError, ClientAdditionalData, ClientMetaData } from "@/app/providers/utils/socket"
+import type { ChatMessage, ChatError, ClientAdditionalData, ClientMetaData, MessageStatus } from "@/app/providers/utils/socket"
 import type { User } from '@/lib/db/types'
 
 interface ChatProviderProps {
@@ -42,6 +42,7 @@ export function ChatProvider({
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
   const [isTyping, setIsTyping] = useState<Record<string, boolean>>({})
   const [pendingMessages, setPendingMessages] = useState<Record<string, PendingMessage>>({})
+  const [deliveryStatus, setDeliveryStatus] = useState<Record<string, MessageStatus>>({})
   const currentUserId = clientId
 
 
@@ -119,6 +120,11 @@ export function ChatProvider({
           [message.roomId]: roomMessages
         };
       });
+
+      setDeliveryStatus(prev => ({
+        ...prev,
+        [message.messageId]: 'sent'
+      }));
   
       onMessageReceived?.(message)
     }
@@ -128,7 +134,17 @@ export function ChatProvider({
         const { [messageId]: removed, ...rest } = prev
         return rest
       })
-      onMessageDelivered?.(messageId)
+
+      setTimeout(() => {
+        setDeliveryStatus(prev => ({
+          ...prev,
+          [messageId]: 'delivered'
+        }))
+        
+        onMessageDelivered?.(messageId)
+      }, 2000)
+
+      //onMessageDelivered?.(messageId)
     }
 
     const handleError = (error: ChatError) => {
@@ -207,14 +223,21 @@ export function ChatProvider({
       }
     }
 
+    //setMessages(prev => {
+    //  const roomMessages = [...(prev[roomId] || []), message];
+    //  return {
+    //    ...prev,
+    //    [roomId]: roomMessages
+    //  };
+    //});
 
     setMessages(prev => {
-      const roomMessages = [...(prev[roomId] || []), message];
+      const existingMessages = prev[roomId] || []
       return {
         ...prev,
-        [roomId]: roomMessages
-      };
-    });
+        [roomId]: [...existingMessages, message]
+      }
+    })
 
     setPendingMessages(prev => ({
       ...prev,
@@ -225,6 +248,11 @@ export function ChatProvider({
       }
     }))
 
+    setDeliveryStatus(prev => ({
+      ...prev,
+      [messageId]: 'pending'
+    }))
+
 
     try {
       socket.emit('chat:private', {
@@ -233,10 +261,21 @@ export function ChatProvider({
         metaData
       })
 
+      setDeliveryStatus(prev => ({
+        ...prev,
+        [messageId]: 'sent'
+      }))
+
       onMessageSent?.(message)
       return messageId
     } catch (error) {
       console.error('Error sending message:', error)
+
+      setDeliveryStatus(prev => ({
+        ...prev,
+        [messageId]: 'error'
+      }))
+
       throw error
     }
   }, [socket, isConnected, currentUserId, getRoomId, onMessageSent, clientMetaData])
@@ -262,6 +301,19 @@ export function ChatProvider({
       return rest
     })
   }, [])
+
+
+  const getMessageStatus = useCallback((messageId: string): MessageStatus => {
+    if (deliveryStatus[messageId]) {
+      return deliveryStatus[messageId];
+    }
+    
+    if (pendingMessages[messageId]) {
+      return 'pending';
+    }
+    
+    return 'sent';
+  }, [deliveryStatus, pendingMessages]);
 
   const markMessageAsRead = useCallback((messageId: string, roomId: string) => {
     setMessages(prev => ({
@@ -425,6 +477,7 @@ export function ChatProvider({
       currentUserId,
       clientAdditionalData: clientAdditionalData || null,
       clientMetaData: clientMetaData || null,
+      deliveryStatus,
       setSelectedUser,
       sendMessage,
       setTypingStatus,
@@ -436,7 +489,8 @@ export function ChatProvider({
       getChatUsersLocalData,
       getUserById,
       getRoomId,
-      updateClientData
+      updateClientData,
+      getMessageStatus
     }}>
       {children}
     </ChatCtx.Provider>

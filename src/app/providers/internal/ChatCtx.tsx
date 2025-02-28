@@ -13,12 +13,14 @@ export interface ChatCtxState {
   currentUserId: string 
   clientAdditionalData: ClientAdditionalData | null
   clientMetaData: ClientMetaData | null
+  deliveryStatus: Record<string, MessageStatus>
 }
 
 export interface ChatCtxActions {
   setSelectedUser: (user: User | null) => void
   sendMessage: (content: string, recipientId: string, recipientData?: User) => Promise<string>
   setTypingStatus: (isTyping: boolean, recipientId: string) => void
+  getMessageStatus: (messageId: string) => MessageStatus
   clearMessages: (roomId: string) => void
   markMessageAsRead: (messageId: string, roomId: string) => void
   getLastMessage: (userId: string) => ChatMessage | undefined
@@ -60,9 +62,16 @@ export function getMessageStatus(
   messageId: string, 
   context: ChatCtxValue
 ): MessageStatus {
-  if (context.pendingMessages.includes(messageId)) {
-    return 'pending'
+  // First check if the message is in the delivery status map
+  if (context.deliveryStatus[messageId]) {
+    return context.deliveryStatus[messageId];
   }
-  // Add more status checks as needed
-  return 'delivered'
+  
+  // If not found in delivery status, check if it's pending
+  if (context.pendingMessages.includes(messageId)) {
+    return 'pending';
+  }
+  
+  return 'delivered';
 }
+

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
+import { toast } from "sonner"
 import { io, type Socket } from "socket.io-client"
 import { v4 as uuidv4 } from 'uuid'
 import { 
@@ -140,6 +141,12 @@ export function SocketProvider({ children, config }: SocketProviderProps) {
 
     onConnectError: (error: Error) => {
       console.error("Socket connection error:", error)
+
+      toast.error("Connection error", {
+        description: "Failed to connect to the server. Please check your internet connection.",
+        duration: 5000,
+      })
+
       setState(prev => ({
         ...prev,
         connectionError: error.message,
@@ -252,6 +259,12 @@ export function SocketProvider({ children, config }: SocketProviderProps) {
       }
     } catch (error) {
       console.error("Socket initialization error:", error)
+
+      toast.error("Connection error", {
+        description: "Failed to initialize socket connection. Please try again later.",
+        duration: 5000,
+      })
+      
       setState(prev => ({
         ...prev,
         connectionError: "Failed to initialize socket connection"

@@ -1,8 +1,8 @@
-import { SocketProvider } from '@/app/providers/internal/SocketProvider';
-import { createSocketConfig } from '../providers/utils/socketSessionConfig';
-import { auth } from '@/app/providers/server/auth';
-import { Inter } from 'next/font/google';
-import { Toaster } from 'sonner';
+import { SocketProvider } from '@/app/providers/internal/SocketProvider'
+import { createSocketConfig } from '../providers/utils/socketSessionConfig'
+import { auth } from '@/app/providers/server/auth'
+import { Inter } from 'next/font/google'
+import { Toaster } from "@/components/ui/sonner"
 
 const inter = Inter({ 
   subsets: ['latin'],
