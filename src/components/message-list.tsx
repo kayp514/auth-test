@@ -12,6 +12,16 @@ import {
   AlertCircleIcon,
 } from 'lucide-react'
 
+const statusSounds = {
+  sent: new Audio('/sounds/sent.mp3'),
+  delivered: new Audio('/sounds/sent.mp3')
+}
+
+Object.values(statusSounds).forEach(sound => {
+  sound.load()
+  sound.volume = 0.4
+})
+
 interface MessageListProps {
   currentUserId: string
   selectedUser: User | null
@@ -20,23 +30,39 @@ interface MessageListProps {
 const MessageStatusIndicator = ({ messageId }: { messageId: string }) => {
   const { getMessageStatus } = useChat()
   const status = getMessageStatus(messageId)
+  const previousStatus = useRef(status)
+
+  useEffect(() => {
+    if (status !== previousStatus.current) {
+      if (status === 'sent') {
+        statusSounds.sent.play().catch(() => {})
+      } else if (status === 'delivered') {
+        statusSounds.delivered.play().catch(() => {})
+      }
+      previousStatus.current = status
+    }
+  }, [status])
   
-  switch (status) {
-    case 'pending':
-      return <ClockIcon className="h-3 w-3 text-muted-foreground" />
-    case 'sent':
-      return <CheckIcon className="h-3 w-3 text-muted-foreground" />
-    case 'delivered':
-      return <CheckCheckIcon className="h-3 w-3 text-muted-foreground" />
-    case 'error':
-      return <AlertCircleIcon className="h-3 w-3 text-red-500" />
-    default:
-      return null
-  }
+  return (
+    <span className="flex items-center transition-opacity duration-200">
+      {status === 'pending' && (
+        <ClockIcon className="h-3 w-3 text-current animate-pulse" />
+      )}
+      {status === 'sent' && (
+        <CheckIcon className="h-3 w-3 text-current animate-in fade-in" />
+      )}
+      {status === 'delivered' && (
+        <CheckCheckIcon className="h-3 w-3 text-current animate-in fade-in" />
+      )}
+      {status === 'error' && (
+        <AlertCircleIcon className="h-3 w-3 text-red-500 animate-in fade-in" />
+      )}
+    </span>
+  )
 }
 
 export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
-  const { messages, deliveryStatus } = useChat()
+  const { messages, deliveryStatus, pendingMessages } = useChat()
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
@@ -45,6 +71,14 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
     const distance = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
     return distance === 'less than a minute ago' ? 'now' : distance
   }
+
+  useEffect(() => {
+    console.log('Delivery status updated:', deliveryStatus)
+  }, [deliveryStatus])
+  
+  useEffect(() => {
+    console.log('Pending messages updated:', pendingMessages)
+  }, [pendingMessages])
 
   useEffect( () => {
     if (scrollRef.current && scrollAreaRef.current) {
@@ -86,6 +120,7 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
     <ScrollArea ref={scrollAreaRef} className="flex-1 p-6">
       <div ref={scrollRef} className="space-y-4">
         {conversationMessages.map((msg) => (
+          //const isSentByMe = msg.fromId === currentUserId
           <div
             key={msg.messageId}
             className={`flex ${msg.fromId === currentUserId ? 'justify-end' : 'justify-start'}`}
@@ -97,17 +132,17 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
             >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {msg.fromId === currentUserId ? 'You' : selectedUser.name?.[0].toUpperCase() || 'U'}
+                  {msg.fromId === currentUserId ? 'ME' : selectedUser.name?.[0].toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div
-                className={`rounded-lg p-3 ${
+                className={`rounded-2xl p-4 shadow-sm ${
                   msg.fromId === currentUserId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    ? 'bg-gradient-to-br from-primary/90 to-primary text-primary-foreground'
+                    : 'bg-muted/50 dark:bg-muted/80'
                 }`}
               >
-                <p className="text-sm">{msg.message}</p>
+                <p className="text-sm leading-relaxed">{msg.message}</p>
                 <div className="flex items-center justify-between mt-1 space-x-2">
                 <span className="text-xs opacity-70">
                   {formatMessageTime(msg.timestamp)}

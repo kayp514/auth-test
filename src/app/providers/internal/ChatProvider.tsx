@@ -255,7 +255,7 @@ export function ChatProvider({
 
 
     try {
-      socket.emit('chat:private', {
+{/*      socket.emit('chat:private', {
         targetId: recipientId,
         message: content,
         metaData
@@ -264,9 +264,23 @@ export function ChatProvider({
       setDeliveryStatus(prev => ({
         ...prev,
         [messageId]: 'sent'
-      }))
+      }))*/}
 
-      onMessageSent?.(message)
+      setTimeout(() => {
+        socket.emit('chat:private', {
+          targetId: recipientId,
+          message: content,
+          metaData
+        })
+      
+        // Update status to 'sent' once emitted
+        setDeliveryStatus(prev => ({
+          ...prev,
+          [messageId]: 'delivered'
+        }))
+      }, 500)
+
+      //onMessageSent?.(message)
       return messageId
     } catch (error) {
       console.error('Error sending message:', error)
