@@ -94,6 +94,16 @@ const ChatButtonItem = ({
   )?.presence;
 
   const isUserTyping = Boolean(isTyping[user.uid])
+
+  const formatMessageTime = (timestamp: string) => {
+    const distance = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+    return distance === 'less than a minute ago' ? 'now' : distance
+  }
+
+  const truncateMessage = (message: string, maxLength: number = 30) => {
+    if (message.length <= maxLength) return message
+    return `${message.substring(0, maxLength)}...`
+  }
   
   return (
     <Button
@@ -133,9 +143,7 @@ const ChatButtonItem = ({
             </span>
             {lastMessage?.timestamp && (
               <span className="text-xs text-muted-foreground flex-shrink-0">
-                {formatDistanceToNow(new Date(lastMessage.timestamp), { 
-                  addSuffix: true 
-                })}
+                {formatMessageTime(lastMessage.timestamp)}
               </span>
             )}
           </div>
@@ -149,7 +157,7 @@ const ChatButtonItem = ({
               <div className="flex items-center gap-2 min-w-0">
                 <p className="text-xs text-muted-foreground truncate">
                   {lastMessage.fromId === user.uid ? `${name}: ` : 'You: '}
-                  {lastMessage.message}
+                  {truncateMessage(lastMessage.message)}
                 </p>
               </div>
             ) : (

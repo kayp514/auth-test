@@ -1,4 +1,4 @@
-'use client';
+{/*'use client';
 
 import { useSocket, type Notification } from '@/app/providers/internal/SocketCtx';
 import { NotificationSender } from '@/components/notifications';
@@ -43,4 +43,4 @@ export default function NotificationPage() {
       </div>
     </div>
   );
-}
+}*/}

@@ -121,7 +121,7 @@ export async function createUser(data: DatabaseUserInput | null) {
         CreatedAt: data.CreatedAt,
         LastSignInAt: data.LastSignInAt,
         updatedAt: new Date(),
-        active: true,
+        disabled: false
       }
    const user =  await prisma.users.create({
       data: sanitizedData,
@@ -134,10 +134,10 @@ export async function createUser(data: DatabaseUserInput | null) {
         isAdmin: true,
         phoneNumber: true,
         emailVerified: true,
-        active: true,
+        disabled: true,
         updatedAt: true,
-        CreatedAt: true,
-        LastSignInAt: true,
+        createdAt: true,
+        lastSignInAt: true,
       },
     });
 

@@ -46,7 +46,7 @@ export async function createDatabaseUser(firebaseUser: FirebaseAuthUser): Promis
             description: 'Default organization for new users',
             plan: 'basic',
             maxUsers: 300,
-            active: true,
+            disabled: false
           },
         })
       }
@@ -105,7 +105,7 @@ export async function verifyDatabaseUser(uid: string): Promise<{
     tenantId: string;
     isAdmin: boolean;
     emailVerified: boolean;
-    active: boolean;
+    disabled: boolean;
   };
   error?: {
     code: string;
@@ -122,7 +122,7 @@ export async function verifyDatabaseUser(uid: string): Promise<{
         tenantId: true,
         isAdmin: true,
         emailVerified: true,
-        active: true,
+        disabled: true,
       }
     })
 
@@ -136,7 +136,7 @@ export async function verifyDatabaseUser(uid: string): Promise<{
       }
     }
 
-    if (!dbUser.active) {
+    if (dbUser.disabled) {
       return {
         success: false,
         error: {

@@ -8,7 +8,9 @@ import {
   type SocketCtxState,
 } from "./SocketCtx"
 
-import type {  PresenceUpdate, Presence } from "@/app/providers/utils/socket"
+
+import type {  PresenceUpdate, Presence, SocketConfig } from "@/app/providers/utils/socket"
+import { getStoredSessionId, storeSessionId } from "@/app/providers/utils/socketSessionConfig"
 
 
 // Constants
@@ -23,8 +25,7 @@ const SOCKET_CONFIG = {
 // Types
 interface SocketProviderProps {
   children: ReactNode
-  clientId: string
-  apiKey: string
+  config: SocketConfig
 }
 
 interface SocketEventHandlers {
@@ -37,10 +38,17 @@ interface SocketEventHandlers {
   onPresenceEnter: (data: PresenceUpdate) => void
   onPresenceLeave: (data: { clientId: string }) => void
   onPresenceSync: (updates: PresenceUpdate[]) => void
+  onSession: (data: { sessionId: string }) => void
 }
 
 // Helper functions
-const createSocketInstance = ({ clientId, apiKey }: { clientId: string, apiKey: string }) => {
+const createSocketInstance = ({ 
+  config,
+  sessionId 
+}: { 
+  config: SocketConfig,
+  sessionId: string | null
+}) => {
   return io(SOCKET_CONFIG.baseUrl, {
     transports: ["websocket"],
     reconnection: true,
@@ -49,8 +57,9 @@ const createSocketInstance = ({ clientId, apiKey }: { clientId: string, apiKey: 
     timeout: SOCKET_CONFIG.connectionTimeout,
     autoConnect: true,
     auth: {
-      clientId,
-      apiKey
+      clientId: config.clientId,
+      apiKey: config.apiKey,
+      sessionId
     }
   })
 }
@@ -64,7 +73,10 @@ const validateNotificationData = (data: unknown): data is { notifications: Notif
   )
 }
 
-export function SocketProvider({ children, clientId, apiKey }: SocketProviderProps) {
+export function SocketProvider({ children, config }: SocketProviderProps) {
+
+  const initialSessionId = useRef(getStoredSessionId(config));
+
   const [state, setState] = useState<SocketCtxState>({
     socket: null,
     isConnected: false,
@@ -72,10 +84,17 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     notifications: [],
     socketId: null,
     presenceState: new Map(),
-    clientId
+    clientId: config.clientId,
+    sessionId: initialSessionId.current
   })
   
   const connectionAttempted = useRef(false)
+  const configRef = useRef(config)
+
+  // Update config ref if config changes
+  //useEffect(() => {
+   // configRef.current = config;
+ // }, [config]);
 
   // Event Handlers
   const createEventHandlers = useCallback((socketInstance: Socket): SocketEventHandlers => ({
@@ -95,6 +114,27 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         ...prev,
         isConnected: false,
         socketId: null
+      }))
+    },
+
+    onSession: ({ sessionId }: { sessionId: string }) => {
+      console.log("Received session ID:", sessionId)
+      
+      // Store the sessionId in configured storage
+      storeSessionId(sessionId, configRef.current);
+      
+      // Update socket auth for reconnections
+      if (socketInstance.auth) {
+        socketInstance.auth = {
+          ...socketInstance.auth,
+          sessionId
+        };
+      }
+      
+      // Update state with the new sessionId
+      setState(prev => ({
+        ...prev,
+        sessionId
       }))
     },
 
@@ -128,7 +168,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
 
     onPresenceEnter: (data: PresenceUpdate) => {
       console.log('Presence enter received:', data)
-      if (data.clientId === clientId) {
+      if (data.clientId === config.clientId) {
         console.log('Received own presence enter - ignoring');
         return;
       }
@@ -139,7 +179,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     },
 
     onPresenceUpdate: (data: PresenceUpdate) => {
-      console.log('Presence update received:', { data, currentClientId: clientId });
+      console.log('Presence update received:', { data, currentClientId: config.clientId });
       setState(prev => ({
         ...prev,
         presenceState: new Map(prev.presenceState).set(data.clientId, data)
@@ -166,7 +206,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       })
     },
 
-  }), [clientId])
+  }), [])
 
   // Socket initialization
   useEffect(() => {
@@ -175,12 +215,16 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     connectionAttempted.current = true
 
     try {
-      const socketInstance = createSocketInstance({ clientId, apiKey })
+      const socketInstance = createSocketInstance({ 
+        config,
+        sessionId: initialSessionId.current 
+      })
       const handlers = createEventHandlers(socketInstance)
 
       // Attach event listeners
       socketInstance.on("connect", handlers.onConnect)
       socketInstance.on("disconnect", handlers.onDisconnect)
+      socketInstance.on("session", handlers.onSession) 
       socketInstance.on("connect_error", handlers.onConnectError)
       socketInstance.on("presence:enter", handlers.onPresenceEnter)
       socketInstance.on("presence:update", handlers.onPresenceUpdate)
@@ -195,6 +239,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       return () => {
         socketInstance.off("connect", handlers.onConnect)
         socketInstance.off("disconnect", handlers.onDisconnect)
+        socketInstance.off("session", handlers.onSession)
         socketInstance.off("connect_error", handlers.onConnectError)
         socketInstance.off("presence:enter", handlers.onPresenceEnter)
         socketInstance.off("presence:update", handlers.onPresenceUpdate)
@@ -276,13 +321,13 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
   }, [])
 
   const setPresence = useCallback((presence: Presence) => {
-    console.log('Setting presence:', { clientId, presence });
+    console.log('Setting presence:', { clientId: config.clientId, presence });
     if (state.socket && state.isConnected) {
       state.socket.emit('presence:update', presence);
     } else {
       console.warn('Cannot set presence - socket not connected');
     }
-  }, [state.socket, state.isConnected, clientId]);
+  }, [state.socket, state.isConnected, config.clientId]);
 
 
   return (

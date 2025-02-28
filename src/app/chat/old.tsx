@@ -1,4 +1,4 @@
-'use client'
+{/*'use client'
 
 import { useState } from "react"
 import { SearchUsers } from "@/components/search-users"
@@ -53,15 +53,15 @@ export default function ChatPage() {
       setNewMessageRecipient(null)
       setNewMessageContent('')
     }
-  }
+  } 
 
 
   return (
     <div className="container h-[calc(100vh-2rem)] mx-auto p-4">
       <div className="grid h-full grid-cols-1 md:grid-cols-4 gap-4">
-        {/* User List Card */}
+        //User List Card
         <Card className="col-span-1 flex flex-col h-full">
-          {/* Search Header */}
+          // Search Header
           <div className="p-4 border-b">
           <div className="flex items-center gap-2 mb-4">
                 <Button
@@ -80,12 +80,12 @@ export default function ChatPage() {
             />
           </div>
 
-          {/* User List */}
+          // User List 
           <ChatHistory
           onSelectChat={() => {}}
           />
 
-          {/* User Footer */}
+          // User Footer 
           <div className="p-4 border-t mt-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -144,9 +144,9 @@ export default function ChatPage() {
           </div>
         </Card>
 
-        {/* Chat Area Card */}
+        // Chat Area Card 
         <Card className="col-span-1 md:col-span-3 flex flex-col h-full">
-          {/* Chat Header */}
+          // Chat Header 
           {selectedUser ? (
             <div className="px-6 py-4 border-b">
               <div className="flex items-center space-x-3">
@@ -177,13 +177,13 @@ export default function ChatPage() {
                 Select a conversation
               </h2>
             </div>
-          )}
+          )} 
 
-          {/* Messages Area */}
+          // Messages Area 
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-4">
               {selectedUser ? (
-                messages.map((msg) => (
+                message.map((msg) => (
                   <div
                     key={msg.id}
                     className={`flex ${msg.senderId === user?.uid ? 'justify-end' : 'justify-start'}`}
@@ -229,7 +229,7 @@ export default function ChatPage() {
             </div>
           </ScrollArea>
 
-          {/* Message Input */}
+          // Message Input 
           <div className="p-4 border-t mt-auto">
             <form 
               onSubmit={(e) => {
@@ -261,4 +261,4 @@ export default function ChatPage() {
   />
     </div>
   )
-}
+} */}

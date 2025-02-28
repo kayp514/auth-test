@@ -17,6 +17,7 @@ export interface SocketCtxState {
   socketId: string | null
   presenceState: Map<string, PresenceUpdate> 
   clientId: string
+  sessionId: string | null
 }
 
 export interface SocketCtxActions {
@@ -36,6 +37,7 @@ const initialState: SocketCtxValue = {
   presenceState: new Map(), 
   socketId: null,
   clientId: '',
+  sessionId: null,
   sendNotification: async () => {},
   setPresence: () => {},
   disconnect: () => {},

@@ -1,3 +1,5 @@
+'use client'
+import { useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useChat } from "@/app/providers/internal/ChatCtx"
@@ -11,6 +13,23 @@ interface MessageListProps {
 
 export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
   const { messages } = useChat()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+
+
+  const formatMessageTime = (timestamp: string) => {
+    const distance = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+    return distance === 'less than a minute ago' ? 'now' : distance
+  }
+
+  useEffect( () => {
+    if (scrollRef.current && scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight
+      }
+    }
+  }, [messages, selectedUser])
 
   if (!selectedUser) {
     return (
@@ -40,8 +59,8 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
   }
 
   return (
-    <ScrollArea className="flex-1 p-6">
-      <div className="space-y-4">
+    <ScrollArea ref={scrollAreaRef} className="flex-1 p-6">
+      <div ref={scrollRef} className="space-y-4">
         {conversationMessages.map((msg) => (
           <div
             key={msg.messageId}
@@ -54,7 +73,7 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
             >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {msg.fromId === currentUserId ? 'You' : selectedUser.name?.[0] || 'U'}
+                  {msg.fromId === currentUserId ? 'You' : selectedUser.name?.[0].toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div
@@ -66,9 +85,7 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
               >
                 <p className="text-sm">{msg.message}</p>
                 <span className="text-xs opacity-70 mt-1 block">
-                  {formatDistanceToNow(new Date(msg.timestamp), { 
-                    addSuffix: true 
-                  })}
+                  {formatMessageTime(msg.timestamp)}
                 </span>
               </div>
             </div>
