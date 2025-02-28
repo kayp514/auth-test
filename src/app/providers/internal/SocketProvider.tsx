@@ -5,14 +5,10 @@ import { io, type Socket } from "socket.io-client"
 import { v4 as uuidv4 } from 'uuid'
 import { 
   SocketCtx, 
-  type Notification, 
-  type NotificationType,
   type SocketCtxState,
-  type Presence,
-  type ChatMessage
 } from "./SocketCtx"
 
-import type {  PresenceUpdate } from "@/app/providers/utils/socket"
+import type {  PresenceUpdate, Presence } from "@/app/providers/utils/socket"
 
 
 // Constants
@@ -41,7 +37,6 @@ interface SocketEventHandlers {
   onPresenceEnter: (data: PresenceUpdate) => void
   onPresenceLeave: (data: { clientId: string }) => void
   onPresenceSync: (updates: PresenceUpdate[]) => void
-  onPrivateMessage: (messageData: ChatMessage) => void
 }
 
 // Helper functions
@@ -77,7 +72,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
     notifications: [],
     socketId: null,
     presenceState: new Map(),
-    messages: []
+    clientId
   })
   
   const connectionAttempted = useRef(false)
@@ -129,7 +124,7 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         ...prev,
         notifications: [...prev.notifications, notification]
       }))
-    },
+    }, 
 
     onPresenceEnter: (data: PresenceUpdate) => {
       console.log('Presence enter received:', data)
@@ -171,14 +166,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       })
     },
 
-    onPrivateMessage: (messageData: ChatMessage) => {
-      console.log('Private message received:', messageData);
-       setState(prev => ({
-        ...prev,
-         messages: [...(prev.messages || []), messageData]
-      }))
-    },
-
   }), [clientId])
 
   // Socket initialization
@@ -201,7 +188,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
       socketInstance.on("presence:leave", handlers.onPresenceLeave)
       socketInstance.on("recent_notification", handlers.onRecentNotification)
       socketInstance.on("notification", handlers.onNotification)
-      socketInstance.on("chat:private", handlers.onPrivateMessage)
 
       setState(prev => ({ ...prev, socket: socketInstance }))
 
@@ -216,7 +202,6 @@ export function SocketProvider({ children, clientId, apiKey }: SocketProviderPro
         socketInstance.off("presence:leave", handlers.onPresenceLeave)
         socketInstance.off("recent_notification", handlers.onRecentNotification)
         socketInstance.off("notification", handlers.onNotification)
-        socketInstance.off("chat:private", handlers.onPrivateMessage)
         socketInstance.disconnect()
         connectionAttempted.current = false
       }

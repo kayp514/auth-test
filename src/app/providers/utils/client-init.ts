@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -16,7 +16,7 @@ const config = {
 // Initialize immediately
 const clientApp = getApps().length === 0 ? initializeApp(config, 'Auth-Test') : getApps()[0];
 export const ternSecureAuth = getAuth(clientApp);
-setPersistence(ternSecureAuth, browserSessionPersistence); //to change later user should be able to choose persistance
+setPersistence(ternSecureAuth, browserLocalPersistence); //to change later user should be able to choose persistance
 const firestore = getFirestore(clientApp);
 const storage = getStorage(clientApp);
 

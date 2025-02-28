@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 import { ternSecureAuth } from '../utils/client-init';
-import type { TernSecureState, SignInResponse, TernSecureUser } from '@/app/providers/utils/types';
+import type { TernSecureState, SignInResponse, TernSecureUser} from '@/app/providers/utils/types';
 
 
 export const getCurrentUser = (): TernSecureUser | null => {

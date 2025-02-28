@@ -17,29 +17,75 @@ model tenants {
   logo        String?  @db.VarChar(255)
   plan        String   @default("basic") @db.VarChar(20)
   maxUsers    Int      @default(5)
-  active      Boolean  @default(true)
+  disabled    Boolean  @default(false)
   features    Json?
   users       users[]
+  chats       chats[]
 
   @@map("tenants")
 }
 
 model users {
-  uid                  String    @id @unique @db.VarChar(50)
-  updatedAt            DateTime  @updatedAt
-  email                String    @unique @db.VarChar(255)
-  name                 String?   @db.VarChar(100)
-  isAdmin              Boolean   @default(true)
-  avatar               String?   @db.VarChar(255)
-  phoneNumber          String?   @db.VarChar(20)
-  emailVerified        Boolean   @default(false)
-  active               Boolean   @default(true)
-  tenantId             String    @db.VarChar(50)
-  CreatedAt            DateTime?
-  LastSignInAt         DateTime?
-  tenant               tenants   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uid           String    @id @unique @db.VarChar(50)
+  updatedAt     DateTime  @updatedAt
+  email         String    @unique @db.VarChar(255)
+  name          String?   @db.VarChar(100)
+  isAdmin       Boolean   @default(true)
+  avatar        String?   @db.VarChar(255)
+  phoneNumber   String?   @db.VarChar(20)
+  emailVerified Boolean   @default(false)
+  disabled      Boolean   @default(false)
+  tenantId      String    @db.VarChar(50)
+  createdAt     DateTime?
+  lastSignInAt  DateTime?
+
+  tenant        tenants    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sentChats     chats[]    @relation("ChatSender")
+  receivedChats chats[]    @relation("ChatRecipient")
+  sentMessages  messages[] @relation("MessageSender")
 
   @@index([email])
   @@index([tenantId])
   @@map("users")
+}
+
+model chats {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastMessage DateTime?
+  senderId    String    @db.VarChar(50)
+  recipientId String    @db.VarChar(50)
+  tenantId    String    @db.VarChar(50)
+
+  sender    users      @relation("ChatSender", fields: [senderId], references: [uid], onDelete: Cascade)
+  recipient users      @relation("ChatRecipient", fields: [recipientId], references: [uid], onDelete: Cascade)
+  tenant    tenants    @relation(fields: [tenantId], references: [id])
+  messages  messages[]
+
+  @@unique([senderId, recipientId])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([lastMessage])
+  @@index([tenantId])
+  @@map("chats")
+}
+
+model messages {
+  id        String    @id @default(cuid())
+  chatId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  content   String    @db.Text
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  senderId  String    @db.VarChar(50)
+
+  chat   chats @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender users @relation("MessageSender", fields: [senderId], references: [uid], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
 }

@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, X } from 'lucide-react'
 import { Textarea } from "@/components/ui/textarea"
-import type { SearchUser as User } from '@/lib/db/types'
+import type { User, Chat } from '@/lib/db/types'
 import { useSearch } from '@/lib/hooks/use-search'
+import { useChat } from '@/app/providers/internal/ChatCtx'
 
 
 interface NewMessageDialogProps {
@@ -27,7 +28,10 @@ interface NewMessageDialogProps {
 export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialogProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [message, setMessage] = useState('')
+  const [ isSending, setIsSending ] = useState(false)
   const { users, searchQuery, isPending, updateSearchQuery } = useSearch()
+  const { sendMessage } = useChat()
+
 
 
   const filteredUsers = users.filter(user => 
@@ -35,12 +39,47 @@ export function NewMessageDialog({ open, onOpenChange, onSend }: NewMessageDialo
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleStartChat = () => {
-    if (selectedUser && message.trim()) {
-      onSend?.(selectedUser, message)
+  const handleStartChat = async () => {
+    if (!selectedUser || !message.trim() ) return //check here if is connected needed
+
+    setIsSending(true)
+    try {
+      const response =  await fetch('api/chats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientId: selectedUser.uid,
+          content: message.trim()
+        })
+      })
+
+      const data =  await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error?.message || 'Failed to ')
+      }
+
+      // Send the message via socket after DB save is successful
+      await sendMessage(
+        message.trim(),
+        selectedUser.uid,
+        selectedUser
+      )
+
       onOpenChange(false)
       setSelectedUser(null)
       setMessage('')
+
+      if (onSend) {
+        onSend(selectedUser, message)
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setIsSending(false)
     }
   }
 

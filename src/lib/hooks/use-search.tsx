@@ -3,7 +3,7 @@
 import { useState, useCallback, useTransition, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useDebounce } from './use-debounce'
-import type { SearchUser as User } from '@/lib/db/types'
+import type {  User } from '@/lib/db/types'
 
 export function useSearch() {
   const [users, setUsers] = useState<User[]>([])

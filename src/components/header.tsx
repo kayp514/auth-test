@@ -47,7 +47,7 @@ export function Header() {
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg hover:bg-accent px-2 py-1">
             <div className="relative">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.photoURL || ''} />
+                  
               <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
             <span 

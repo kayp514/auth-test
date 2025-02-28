@@ -16,6 +16,7 @@ interface FirebaseIdTokenPayload {
       [key: string]: any
     }
     sign_in_provider: string
+    tenant?: string;
   }
 }
 
@@ -66,10 +67,10 @@ export async function verifyFirebaseToken(token: string, isSessionCookie = false
       throw new Error("Invalid token format")
     }
 
-    console.log("Token details:", {
-      header: decoded.header,
-      type: isSessionCookie ? "session_cookie" : "id_token",
-    })
+    //console.log("Token details:", {
+     // header: decoded.header,
+     // type: isSessionCookie ? "session_cookie" : "id_token",
+    //})
 
     let retries = 3
     let lastError: Error | null = null
@@ -112,6 +113,7 @@ export async function verifyFirebaseToken(token: string, isSessionCookie = false
           uid: firebasePayload.sub,
           email: firebasePayload.email,
           emailVerified: firebasePayload.email_verified,
+          tenant: firebasePayload.firebase.tenant,
           authTime: firebasePayload.auth_time,
           issuedAt: firebasePayload.iat,
           expiresAt: firebasePayload.exp,

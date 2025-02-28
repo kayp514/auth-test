@@ -138,6 +138,7 @@ export interface BaseUser {
   uid: string
   email: string | null
   emailVerified?: boolean
+  tenantId: string | null
   authTime?: number
 }
 
@@ -151,7 +152,6 @@ export interface TernSecureUser extends BaseUser {
   email: string | null
   phoneNumber: string | null
   photoURL: string | null
-  providerId: string
   uid: string
 }
 
@@ -169,4 +169,18 @@ export interface CurrentUser extends TernSecureUser {
   providerData: TernSecureUser[]
   refreshToken: string
   tenantId: string | null
+}
+
+export interface FirebaseAuthUser {
+  uid: string
+  email: string | null
+  displayName?: string | null
+  photoURL?: string | null
+  tenantId: string
+  emailVerified: boolean
+  phoneNumber: string | null
+  metadata: {
+      creationTime: string | undefined
+      lastSignInTime: string | undefined
+    }
 }

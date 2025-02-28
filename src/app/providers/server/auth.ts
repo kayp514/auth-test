@@ -29,11 +29,15 @@ export const auth = cache(async (): Promise<AuthResult> => {
         const user: BaseUser = {
           uid: result.uid ?? '',
           email: result.email || null,
+          tenantId: result.tenant || 'default',
           authTime: result.authTime
         }
+        console.log('auth:', user.uid)
         return { user, error: null }
       }
     }
+
+    
 
     // Fallback to ID token
     const idToken = cookieStore.get("_session_token")?.value
@@ -43,6 +47,7 @@ export const auth = cache(async (): Promise<AuthResult> => {
         const user: BaseUser = {
           uid: result.uid ?? '',
           email: result.email || null,
+          tenantId: result.tenant || 'default',
           authTime: result.authTime
         }
         return { user, error: null }

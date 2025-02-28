@@ -1,6 +1,7 @@
 import { SocketProvider } from '@/app/providers/internal/SocketProvider';
 import { auth } from '@/app/providers/server/auth';
 import { Inter } from 'next/font/google';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -21,10 +22,12 @@ export default async function ChatLayout({
 
   return (
     <div className={`${inter.variable} font-sans antialiased`}>
-    <SocketProvider
-    clientId={user?.uid || ""}
-    apiKey={API_KEY ?? 'fake_api_key'}>
+    <SocketProvider 
+      clientId={user?.uid || ""} 
+      apiKey={API_KEY ?? 'fake_api_key'}
+    >
       {children}
+      <Toaster position="top-center" />
     </SocketProvider>
     </div>
   );

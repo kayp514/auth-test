@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Search } from 'lucide-react'
 import { useSearch } from "@/lib/hooks/use-search"
-import type { SearchUser as User } from '@/lib/db/types'
+import type {  User } from '@/lib/db/types'
 
 
 interface SearchUsersProps {
@@ -55,7 +55,7 @@ interface SearchUsersProps {
                     <div className="flex items-center space-x-4 w-full">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+                        <AvatarFallback>{user.name?.[0].toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 text-left">
                         <p className="text-sm font-medium leading-none">{user.name}</p>

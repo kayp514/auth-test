@@ -42,7 +42,7 @@ export interface SignUpResult {
 
 
 
-export interface SearchUser {
+export interface User {
     uid: string
     name: string
     email: string
@@ -52,7 +52,7 @@ export interface SearchUser {
   
 export interface SearchSuccess {
     success: true
-    users: SearchUser[]
+    users: User[]
 }
   
 export interface SearchError {
@@ -64,3 +64,19 @@ export interface SearchError {
   }
 
 export type SearchResult = SearchSuccess | SearchError
+
+export interface Chat {
+  id: string
+  recipient: User
+  lastMessage?: Message
+  updatedAt: Date
+}
+
+
+export interface Message {
+  id: string
+  content: string
+  senderId: string
+  createdAt: Date
+  read: boolean
+}

@@ -113,3 +113,6 @@ node_modules/
 
 # Turborepo
 .turbo
+
+# Cursor
+.cursor
