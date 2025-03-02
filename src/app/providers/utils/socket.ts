@@ -1,4 +1,4 @@
-import type { User } from '@/lib/db/types'
+
 
 export type ChatStatus = 'sent' | 'delivered' | 'read'
 export type MessageType = 'text' | 'image' | 'file'
@@ -57,11 +57,15 @@ export interface StatusUpdate {
   }
   
   export interface ClientToServerEvents {
-    'chat:private': (data: { targetId: string; message: string; metaData?: ClientMetaData }) => void;
-    //'chat:typing': (data: { targetId: string; isTyping: boolean }) => void;
+    'chat:private': (
+      data: { targetId: string; message: string; metaData?: ClientMetaData },
+      callback?: (response: { success: boolean; messageId?: string; error?: string }) => void
+    ) => void;
     'chat:profile_update': (data: ClientAdditionalData) => void;
-    
-    //'presence:update': (status: string) => void;
+    'chat:confirm_receipt': (
+      data: { messageId: string },
+      callback?: (response: { received: boolean }) => void
+    ) => void;
     'presence:update': (presence: Presence) => void;
   }
 

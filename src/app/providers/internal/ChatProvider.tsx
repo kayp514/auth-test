@@ -131,20 +131,31 @@ export function ChatProvider({
 
     const handleDelivered = ({ messageId }: { messageId: string }) => {
       setPendingMessages(prev => {
-        const { [messageId]: removed, ...rest } = prev
-        return rest
-      })
+        const newPending = { ...prev };
+        delete newPending[messageId];
+        return newPending;
+      });
 
-      setTimeout(() => {
-        setDeliveryStatus(prev => ({
-          ...prev,
-          [messageId]: 'delivered'
-        }))
+      setDeliveryStatus(prev => ({
+        ...prev,
+        [messageId]: 'delivered'
+      }));
         
-        onMessageDelivered?.(messageId)
-      }, 2000)
+      onMessageDelivered?.(messageId)
+    }
 
-      //onMessageDelivered?.(messageId)
+    const handleConfirmReceipt = (
+      data: { messageId: string }, 
+      callback?: (response: { received: boolean }) => void
+    ) => {
+      console.log('Confirming receipt of message:', data.messageId);
+      
+      // Always confirm receipt
+      if (callback) {
+        callback({ received: true });
+      }
+      
+      return { received: true };
     }
 
     const handleError = (error: ChatError) => {
@@ -167,6 +178,7 @@ export function ChatProvider({
     socket.on('chat:message', handleMessage)
     socket.on('chat:delivered', handleDelivered)
     socket.on('chat:error', handleError)
+    socket.on('chat:confirm_receipt', handleConfirmReceipt)
     //socket.on('chat:typing', handleTyping)
     socket.on('chat:profile_updated', handleProfileUpdated)
 
@@ -174,6 +186,7 @@ export function ChatProvider({
       socket.off('chat:message', handleMessage)
       socket.off('chat:delivered', handleDelivered)
       socket.off('chat:error', handleError)
+      socket.off('chat:confirm_receipt', handleConfirmReceipt)
       //socket.off('chat:typing', handleTyping)
       socket.off('chat:profile_updated', handleProfileUpdated)
     }
@@ -255,32 +268,29 @@ export function ChatProvider({
 
 
     try {
-{/*      socket.emit('chat:private', {
+      await new Promise<void>((resolve, reject) => {
+      socket.emit('chat:private', {
         targetId: recipientId,
         message: content,
         metaData
-      })
+      }, (response: { success: boolean; messageId?: string; error?: string}) => {
+        if(response.success) {
 
-      setDeliveryStatus(prev => ({
-        ...prev,
-        [messageId]: 'sent'
-      }))*/}
-
-      setTimeout(() => {
-        socket.emit('chat:private', {
-          targetId: recipientId,
-          message: content,
-          metaData
-        })
-      
-        // Update status to 'sent' once emitted
-        setDeliveryStatus(prev => ({
-          ...prev,
-          [messageId]: 'delivered'
-        }))
-      }, 500)
-
-      //onMessageSent?.(message)
+          setDeliveryStatus(prev => ({
+            ...prev,
+            [messageId]: 'sent'
+          }));
+          resolve();
+        } else {
+          setDeliveryStatus(prev => ({
+            ...prev,
+            [messageId]: 'error'
+          }))
+          reject(new Error(response.error || 'Failed to send message'));
+        }
+      });
+    });
+      onMessageSent?.(message)
       return messageId
     } catch (error) {
       console.error('Error sending message:', error)
@@ -318,11 +328,14 @@ export function ChatProvider({
 
 
   const getMessageStatus = useCallback((messageId: string): MessageStatus => {
+    console.log(`Getting status for message ${messageId}:`, 
+      deliveryStatus[messageId] || (Object.keys(pendingMessages).includes(messageId) ? 'pending' : 'sent'));
+      
     if (deliveryStatus[messageId]) {
       return deliveryStatus[messageId];
     }
     
-    if (pendingMessages[messageId]) {
+    if (Object.keys(pendingMessages).includes(messageId)) {
       return 'pending';
     }
     

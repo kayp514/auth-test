@@ -25,8 +25,8 @@ export default async function ChatLayout({
     user?.uid || "", 
     API_KEY ?? 'fake_api_key',
     { 
-      storageType: 'localStorage', // or 'sessionStorage' or 'none'
-      storageKey: 'app_socket_session' // custom key name
+      storageType: 'localStorage',
+      storageKey: 'app_socket_session'
     }
   );
   

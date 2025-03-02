@@ -34,6 +34,7 @@ const MessageStatusIndicator = ({ messageId }: { messageId: string }) => {
 
   useEffect(() => {
     if (status !== previousStatus.current) {
+      console.log(`Message-List: Status changed for message ${messageId}: ${previousStatus.current} -> ${status}`);
       if (status === 'sent') {
         statusSounds.sent.play().catch(() => {})
       } else if (status === 'delivered') {
