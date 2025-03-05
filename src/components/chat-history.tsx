@@ -1,13 +1,15 @@
 'use client'
 
+import { useEffect, useState } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "./ui/button"
 import { formatDistanceToNow } from 'date-fns'
 import { usePresence } from "@/app/providers/hooks/usePresence"
 import { useChat } from "@/app/providers/internal/ChatCtx";
-import type {  UserStatus, ChatMessage } from "@/app/providers/utils/socket"
-import type { User } from '@/lib/db/types'
+import type {  UserStatus, ChatMessage, ConversationData } from "@/app/providers/utils/socket"
+import type { User, Chat} from '@/lib/db/types'
+import { getChats } from "@/lib/chat"
 
 interface ChatHistoryProps {
   selectedUserId?: string;
@@ -23,50 +25,6 @@ interface LastMessageType {
 }
 
 
-const getUserDisplayInfo = (userId: string, messages: Record<string, any>, currentUserId: string) => {
-  // Look through messages to find user profile data
-  for (const roomId in messages) {
-    const roomMessages = messages[roomId];
-    for (const message of roomMessages) {
-      // If this is a message from the user we're looking for
-      if (message.fromId === userId && message.fromData) {
-        // Get name with fallbacks: name → email (before @) → userId
-        const name = message.fromData.name || 
-                    (message.fromData.email ? message.fromData.email.split('@')[0] : userId.substring(0, 8));
-        
-        return {
-          name,
-          avatarLetter: name[0].toUpperCase(),
-          avatar: message.fromData.avatar,
-          email: message.fromData.email
-        };
-      }
-      
-      // If this is a message to the user we're looking for
-      if (message.fromId === currentUserId && userId === message.toId) {
-        // Get name with fallbacks: name → email (before @) → userId
-        const name = message.toData?.name || 
-                    (message.toData?.email ? message.toData.email.split('@')[0] : userId.substring(0, 8));
-        
-        return {
-          name,
-          avatarLetter: name[0].toUpperCase(),
-          avatar: message.toData?.avatar,
-          email: message.toData?.email
-        };
-      }
-    }
-  }
-  
-  // Fallback to ID-based display
-  return {
-    name: userId.substring(0, 8),
-    avatarLetter: userId[0].toUpperCase(),
-    avatar: undefined,
-    email: undefined
-  };
-};
-
 const ChatButtonItem = ({
   user,
   isSelected,
@@ -81,7 +39,7 @@ const ChatButtonItem = ({
   presence?: UserStatus;
 }) => {
   const { presenceUpdates } = usePresence();
-  const { isTyping } = useChat()
+  const { isTyping, subscribeToMessages } = useChat()
 
   const name = user.name || 
   (user.email ? user.email.split('@')[0] : user.uid.substring(0, 8));
@@ -180,33 +138,118 @@ export function ChatHistory({
   const { 
     selectedUser,
     setSelectedUser,
-    getLastMessage,
-    getChatUsers,
-    getChatUsersLocalData,
-    getUserById
+    subscribeToMessages,
+    getConversations,
+    getLastMessage
   } = useChat()
 
-  const { presenceUpdates, presenceState } = usePresence()
-  const chatUsers = getChatUsers()
+  const [conversations, setConversations] = useState<ConversationData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
 
-  
+  useEffect(() => {
+    let isMounted = true
+    
+    const loadConversations = async () => {
+      try {
+        setLoading(true)
+        const result = await getConversations({ limit: 50, offset: 0 })
+        
+        if (isMounted) {
+          setConversations(result.conversations)
+          setHasMore(result.hasMore)
+          setLoading(false)
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError((err as Error).message)
+          setLoading(false)
+        }
+      }
+    }
+
+    const handleNewMessage = (message: ChatMessage) => {
+      console.log('New message received:', message); // Debug log
+      setConversations(prev => {
+        return prev.map(conv => {
+          // For sender's view: if otherUserId matches the recipient
+          // For recipient's view: if otherUserId matches the sender
+          const isRelevantConversation = 
+            (message.fromId === conv.otherUserId) || 
+            (message.toId === conv.otherUserId);
+
+          if (isRelevantConversation) {
+            console.log('Updating conversation for:', conv.otherUserId); // Debug log
+            return {
+              ...conv,
+              lastMessage: message
+            };
+          }
+          return conv;
+        });
+      });
+    }
+    
+    loadConversations()
+    const unsubscribe = subscribeToMessages(handleNewMessage)
+    
+    return () => {
+      isMounted = false
+      unsubscribe()
+    }
+  }, [getConversations, subscribeToMessages])
+
+  const { presenceUpdates, presenceState } = usePresence()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="text-muted-foreground">Loading conversations...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-destructive">Error: {error}</div>
+      </div>
+    )
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="text-muted-foreground">No conversations yet</div>
+      </div>
+    )
+  }
+
+
   return (
     <ScrollArea className="flex-1">
       <div>
-        {chatUsers.map(chatUser=> {
+        {conversations.map(conversation=> {
+          const otherUserId = conversation.otherUserId;
           // Get presence status if available
-          const presenceUpdate = presenceState.get(chatUser.uid)
+          const presenceUpdate = presenceState.get(otherUserId)
           const status = presenceUpdate?.presence.status || 'unknown'
-          const lastMessage = getLastMessage(chatUser.uid)
+          const lastMessage = getLastMessage(otherUserId) || conversation.lastMessage;
 
-          const user = getUserById(chatUser.uid)
+          const user = {
+            uid: otherUserId,
+            name: otherUserId.substring(0, 8), // Use a shortened ID as name
+            email: '',
+            avatar: ''
+          };
           
           
           return (
             <ChatButtonItem
-              key={chatUser.uid}
-              user={chatUser}
-              isSelected={selectedUser?.uid === chatUser.uid}
+              key={otherUserId}
+              user={user}
+              isSelected={selectedUser?.uid === otherUserId}
               onSelect={(user) => {
                 setSelectedUser(user)
                 onSelectChat(user)

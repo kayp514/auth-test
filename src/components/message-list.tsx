@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useChat } from "@/app/providers/internal/ChatCtx"
@@ -11,6 +11,7 @@ import {
   CheckCheckIcon,
   AlertCircleIcon,
 } from 'lucide-react'
+import { MessageStatus, ChatMessage } from "@/app/providers/utils/socket"
 
 const statusSounds = {
   sent: new Audio('/sounds/sent.mp3'),
@@ -27,45 +28,38 @@ interface MessageListProps {
   selectedUser: User | null
 }
 
-const MessageStatusIndicator = ({ messageId }: { messageId: string }) => {
-  const { getMessageStatus } = useChat()
-  const status = getMessageStatus(messageId)
-  const previousStatus = useRef(status)
-
-  useEffect(() => {
-    if (status !== previousStatus.current) {
-      console.log(`Message-List: Status changed for message ${messageId}: ${previousStatus.current} -> ${status}`);
-      if (status === 'sent') {
-        statusSounds.sent.play().catch(() => {})
-      } else if (status === 'delivered') {
-        statusSounds.delivered.play().catch(() => {})
-      }
-      previousStatus.current = status
-    }
-  }, [status])
-  
-  return (
-    <span className="flex items-center transition-opacity duration-200">
-      {status === 'pending' && (
-        <ClockIcon className="h-3 w-3 text-current animate-pulse" />
-      )}
-      {status === 'sent' && (
-        <CheckIcon className="h-3 w-3 text-current animate-in fade-in" />
-      )}
-      {status === 'delivered' && (
-        <CheckCheckIcon className="h-3 w-3 text-current animate-in fade-in" />
-      )}
-      {status === 'error' && (
-        <AlertCircleIcon className="h-3 w-3 text-red-500 animate-in fade-in" />
-      )}
-    </span>
-  )
-}
 
 export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
-  const { messages, deliveryStatus, pendingMessages } = useChat()
+  const { getMessages, messages, subscribeToMessages, subscribeToMessageStatus } = useChat()
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [messageStatuses, setMessageStatuses] = useState<Record<string, MessageStatus>>({})
+
+  useEffect(() => {
+    const handleStatusChange = (messageId: string, newStatus: MessageStatus) => {
+      const previousStatus = messageStatuses[messageId];
+      if (previousStatus !== newStatus) {
+        console.log(`Message-List: Status changed for message ${messageId}: ${previousStatus} -> ${newStatus}`);
+        if (newStatus === 'sent') {
+          statusSounds.sent.play().catch(() => {});
+        }
+      }
+    };
+
+    const unsubscribe = subscribeToMessageStatus((messageId, status) => {
+      handleStatusChange(messageId, status as MessageStatus);
+      setMessageStatuses(prev => ({
+        ...prev,
+        [messageId]: status as MessageStatus
+      }));
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [subscribeToMessageStatus]);
 
 
   const formatMessageTime = (timestamp: string) => {
@@ -73,13 +67,73 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
     return distance === 'less than a minute ago' ? 'now' : distance
   }
 
+  const renderMessageStatus = (messageId: string) => {
+    const status = messageStatuses[messageId] || 'pending';
+    
+    return (
+      <span className="flex items-center transition-opacity duration-200">
+        {status === 'pending' && (
+          <ClockIcon className="h-3 w-3 text-current animate-pulse" />
+        )}
+        {status === 'sent' && (
+          <CheckIcon className="h-3 w-3 text-current animate-in fade-in" />
+        )}
+        {status === 'delivered' && (
+          <CheckCheckIcon className="h-3 w-3 text-current animate-in fade-in" />
+        )}
+        {status === 'error' && (
+          <AlertCircleIcon className="h-3 w-3 text-red-500 animate-in fade-in" />
+        )}
+      </span>
+    );
+  };
+
   useEffect(() => {
-    console.log('Delivery status updated:', deliveryStatus)
-  }, [deliveryStatus])
-  
+    if (!selectedUser) return;
+    
+    const roomId = [currentUserId, selectedUser.uid].sort().join('_');
+    setLoading(true);
+    
+    getMessages(roomId, { limit: 50 })
+      .then(() => {
+        setLoading(false);
+        setError(null);
+      })
+      .catch(err => {
+        console.error("Failed to load messages:", err);
+        setLoading(false);
+        setError("Failed to load messages");
+      });
+  }, [selectedUser, currentUserId, getMessages]);
+
+
   useEffect(() => {
-    console.log('Pending messages updated:', pendingMessages)
-  }, [pendingMessages])
+    if (!selectedUser) return;
+    
+    const roomId = [currentUserId, selectedUser.uid].sort().join('_');
+    
+    // Handle new messages
+    const handleNewMessage = (message: ChatMessage) => {
+      // Only process messages for the current conversation
+      if (message.roomId === roomId) {
+        // Play sound for incoming messages
+        if (message.fromId !== currentUserId) {
+          // You could add a message received sound here
+        }
+      }
+    };
+
+    console.log(`Subscribing to real-time messages for room ${roomId}`);
+    
+    // Subscribe to new messages
+    const unsubscribe = subscribeToMessages(handleNewMessage);
+    
+    return () => {
+      console.log(`Unsubscribing from real-time messages for room ${roomId}`);
+      unsubscribe();
+    };
+  }, [selectedUser, currentUserId, subscribeToMessages]);
+
 
   useEffect( () => {
     if (scrollRef.current && scrollAreaRef.current) {
@@ -104,6 +158,31 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
 
   const roomId = [currentUserId, selectedUser.uid].sort().join('_')
   const conversationMessages = messages[roomId] || []
+
+  if (loading) {
+    return (
+      <ScrollArea className="flex-1 p-6">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-muted-foreground text-sm">
+            Loading messages...
+          </p>
+        </div>
+      </ScrollArea>
+    )
+  }
+
+  if (error) {
+    return (
+      <ScrollArea className="flex-1 p-6">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-destructive text-sm">
+            {error}
+          </p>
+        </div>
+      </ScrollArea>
+    )
+  }
+
 
   if (conversationMessages.length === 0) {
     return (
@@ -150,7 +229,8 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
                 </span>
                 {msg.fromId === currentUserId && (
                   <span className="flex items-center">
-                  <MessageStatusIndicator messageId={msg.messageId} />
+                  {/*<MessageStatusIndicator messageId={msg.messageId} /> */}
+                  {renderMessageStatus(msg.messageId)}
                   </span>
                 )}
               </div>

@@ -2,8 +2,9 @@ import { auth } from '@/app/providers/server/auth'
 import { getUserChats, createNewChat } from '@/lib/db/queries'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+
     const session = await auth()
     
     if (!session?.user?.uid) {

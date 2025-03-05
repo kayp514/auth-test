@@ -17,9 +17,10 @@ import { getStoredSessionId, storeSessionId } from "@/app/providers/utils/socket
 // Constants
 const SOCKET_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_SOCKET_URL,
+  //baseUrl: 'http://localhost:3001',
   room: 'notifications',
   reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
+  reconnectionDelay: 10000,
   connectionTimeout: 60000,
 } as const
 

@@ -1,9 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback} from 'react'
+import { useState, useEffect, useCallback, useRef} from 'react'
 import { useSocket } from './SocketCtx'
 import { ChatCtx } from './ChatCtx'
-import type { ChatMessage, ChatError, ClientAdditionalData, ClientMetaData, MessageStatus } from "@/app/providers/utils/socket"
+import type { 
+  ChatMessage, 
+  ChatError, 
+  ClientAdditionalData, 
+  ClientMetaData, 
+  MessageStatus,
+  ConversationData
+ } from "@/app/providers/utils/socket"
 import type { User } from '@/lib/db/types'
 
 interface ChatProviderProps {
@@ -44,6 +51,12 @@ export function ChatProvider({
   const [pendingMessages, setPendingMessages] = useState<Record<string, PendingMessage>>({})
   const [deliveryStatus, setDeliveryStatus] = useState<Record<string, MessageStatus>>({})
   const currentUserId = clientId
+  const messagesRef = useRef<Record<string, ChatMessage[]>>({})
+  const knownUsersRef = useRef<Record<string, User>>({})
+  const chatUsersRef = useRef<Map<string, User>>(new Map())
+  const lastMessagesRef = useRef<Map<string, ChatMessage>>(new Map())
+  const [loadingConversations, setLoadingConversations] = useState(false)
+  const [userListVersion, setUserListVersion] = useState(0)
 
 
   const initializeChat = useCallback(() => {
@@ -63,134 +76,120 @@ export function ChatProvider({
     }
   }, [socket, isConnected, initializeChat])
 
-  const getRoomId = useCallback((userId: string): string => {
-    return [currentUserId, userId].sort().join('_')
-  }, [currentUserId])
 
-  // Handle incoming messages
-  useEffect(() => {
-    if (!socket) return
+  const subscribeToMessages = useCallback((
+    callback: (message: ChatMessage) => void
+  ) => {
+    if (!socket) return () => {};
 
     const handleMessage = (message: ChatMessage) => {
-      console.log('Received message:', message)
-
-
-      if (message.fromId === currentUserId) {
-        // Just update the pending status
-        setPendingMessages(prev => {
-          // Remove any pending messages with the same content to this recipient
-          const newPending = { ...prev };
-          
-          Object.keys(newPending).forEach(pendingId => {
-            const pendingMsg = newPending[pendingId].message;
-            if (pendingMsg.message === message.message && 
-                pendingMsg.toId === message.toId &&
-                Math.abs(new Date(pendingMsg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 5000) {
-              delete newPending[pendingId];
-            }
-          });
-          
-          return newPending;
-        });
-        
-        return; // Don't add the message again
-      }
       
-
+      // Update messages state
       setMessages(prev => {
-        const existingMessages = prev[message.roomId] || [];
+        const roomId = message.roomId;
+        const existingMessages = prev[roomId] || [];
         
-        // Check if we already have this exact message
-        const messageExists = existingMessages.some(msg => 
-          msg.messageId === message.messageId
-        );
-        
-        if (messageExists) {
-          return prev; // No change needed
+        // Check if we already have this message
+        if (existingMessages.some(m => m.messageId === message.messageId)) {
+          return prev;
         }
         
         // Add the new message
-        const roomMessages = [...existingMessages, message];
-        roomMessages.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        const updatedMessages = [...existingMessages, message].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         
         return {
           ...prev,
-          [message.roomId]: roomMessages
+          [roomId]: updatedMessages
         };
       });
+      
+      // Update last message reference
+      const [user1, user2] = message.roomId.split('_');
+      const recipientId = user1 === message.fromId ? user2 : user1;
 
-      setDeliveryStatus(prev => ({
-        ...prev,
-        [message.messageId]: 'sent'
-      }));
+      // Update last message reference for both users
+      lastMessagesRef.current.set(message.fromId, message);
+      lastMessagesRef.current.set(recipientId, message);
+
+      callback(message);
+    };
   
-      onMessageReceived?.(message)
-    }
-
-    const handleDelivered = ({ messageId }: { messageId: string }) => {
-      setPendingMessages(prev => {
-        const newPending = { ...prev };
-        delete newPending[messageId];
-        return newPending;
-      });
-
-      setDeliveryStatus(prev => ({
-        ...prev,
-        [messageId]: 'delivered'
-      }));
-        
-      onMessageDelivered?.(messageId)
-    }
-
-    const handleConfirmReceipt = (
-      data: { messageId: string }, 
-      callback?: (response: { received: boolean }) => void
-    ) => {
-      console.log('Confirming receipt of message:', data.messageId);
-      
-      // Always confirm receipt
-      if (callback) {
-        callback({ received: true });
-      }
-      
-      return { received: true };
-    }
-
-    const handleError = (error: ChatError) => {
-      onMessageError?.(error)
-    }
-
-    //const handleTyping = ({ fromId, isTyping }: { fromId: string; isTyping: boolean }) => {
-   //   setIsTyping(prev => ({
-    //    ...prev,
-    //    [fromId]: isTyping
-    //  }))
-   //   onTypingStatusChange?.(fromId, isTyping)
-   // }
-
-    const handleProfileUpdated = () => {
-      console.log('Profile updated successfully')
-      onProfileUpdated?.()
-    }
-
     socket.on('chat:message', handleMessage)
-    socket.on('chat:delivered', handleDelivered)
-    socket.on('chat:error', handleError)
-    socket.on('chat:confirm_receipt', handleConfirmReceipt)
-    //socket.on('chat:typing', handleTyping)
-    socket.on('chat:profile_updated', handleProfileUpdated)
-
+  
     return () => {
       socket.off('chat:message', handleMessage)
-      socket.off('chat:delivered', handleDelivered)
-      socket.off('chat:error', handleError)
-      socket.off('chat:confirm_receipt', handleConfirmReceipt)
-      //socket.off('chat:typing', handleTyping)
-      socket.off('chat:profile_updated', handleProfileUpdated)
     }
-  }, [socket, onMessageReceived, onMessageDelivered, onMessageError, onTypingStatusChange, onProfileUpdated])
+  }, [socket])
+
+  const subscribeToErrors = useCallback((
+    callback: (error: ChatError) => void
+  ) => {
+    if (!socket) return () => {}
+  
+    socket.on('chat:error', callback)
+  
+    return () => {
+      socket.off('chat:error', callback)
+    }
+  }, [socket])
+  
+  const subscribeToMessageStatus = useCallback((
+    callback: (messageId: string, status: string) => void
+  ) => {
+    if (!socket) return () => {}
+  
+    socket.emit('chat:subscribe_status');
+  
+    const handleStatus = (data: { messageId: string, status: string }) => {
+      console.log('Received status update:', data);
+  
+      let clientStatus: MessageStatus;
+  
+      switch (data.status) {
+        case 'sent':
+          clientStatus = 'sent';
+          break;
+        case 'delivered':
+          clientStatus = 'delivered';
+          break;
+        case 'error':
+          clientStatus = 'error';
+          break;
+        default:
+          clientStatus = 'pending';
+      }
+          
+      callback(data.messageId, clientStatus);
+    }
+
+    const handleDeliveryConfirmation = (
+      data: { messageId: string, status: string },
+      ack: (response: { received: boolean }) => void
+    ) => {
+      console.log('Received delivery confirmation request:', data);
+      
+      if (data.status === 'confirm_delivery') {
+        // Immediately acknowledge receipt
+        ack({ received: true });
+        console.log('Acknowledged delivery for message:', data.messageId);
+      }
+    };
+  
+    socket.on('chat:status', handleStatus);
+    socket.on('chat:status', handleDeliveryConfirmation);
+  
+    return () => {
+      socket.emit('chat:unsubscribe_status');
+      socket.off('chat:status', handleStatus);
+      socket.off('chat:status', handleDeliveryConfirmation);
+    }
+  }, [socket]);
+
+  const getRoomId = useCallback((userId: string): string => {
+    return [currentUserId, userId].sort().join('_')
+  }, [currentUserId])
 
   const updateClientData = useCallback((data: ClientAdditionalData) => {
     if (socket && isConnected) {
@@ -199,7 +198,6 @@ export function ChatProvider({
       onProfileUpdated?.();
     }
   }, [socket, isConnected, onProfileUpdated]);
-
 
   const sendMessage = useCallback(async (
     content: string,
@@ -210,99 +208,36 @@ export function ChatProvider({
       throw new Error('Socket not connected')
     }
 
-    const messageId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const roomId = getRoomId(recipientId)
-
-    const recipientUser = recipientData || getUserById(recipientId);
-
     const metaData = clientMetaData || {
       name: currentUserId.substring(0, 8),
       email:  `${currentUserId}@example.com`,
     };
 
-
-    const message: ChatMessage = {
-      messageId,
-      roomId,
-      message: content,
-      fromId: currentUserId,
-      toId: recipientId,
-      timestamp: new Date().toISOString(),
-      metaData,
-      toData: {
-        name: recipientUser.name,
-        email: recipientUser.email,
-        avatar: recipientUser.avatar
-      }
-    }
-
-    //setMessages(prev => {
-    //  const roomMessages = [...(prev[roomId] || []), message];
-    //  return {
-    //    ...prev,
-    //    [roomId]: roomMessages
-    //  };
-    //});
-
-    setMessages(prev => {
-      const existingMessages = prev[roomId] || []
-      return {
-        ...prev,
-        [roomId]: [...existingMessages, message]
-      }
-    })
-
-    setPendingMessages(prev => ({
-      ...prev,
-      [messageId]: {
-        message,
-        attempts: 1,
-        timestamp: Date.now()
-      }
-    }))
-
-    setDeliveryStatus(prev => ({
-      ...prev,
-      [messageId]: 'pending'
-    }))
-
-
     try {
-      await new Promise<void>((resolve, reject) => {
-      socket.emit('chat:private', {
+      return new Promise<string>((resolve, reject) => {
+        socket.emit('chat:private', {
         targetId: recipientId,
         message: content,
         metaData
-      }, (response: { success: boolean; messageId?: string; error?: string}) => {
-        if(response.success) {
-
-          setDeliveryStatus(prev => ({
-            ...prev,
-            [messageId]: 'sent'
-          }));
-          resolve();
+      }, (response: { 
+        success: boolean; 
+        messageId?: string; 
+        error?: string
+      }
+      ) => {
+        if(response.success && response.messageId) {
+          resolve(response.messageId);
         } else {
-          setDeliveryStatus(prev => ({
-            ...prev,
-            [messageId]: 'error'
-          }))
           reject(new Error(response.error || 'Failed to send message'));
         }
       });
     });
-      onMessageSent?.(message)
-      return messageId
     } catch (error) {
       console.error('Error sending message:', error)
 
-      setDeliveryStatus(prev => ({
-        ...prev,
-        [messageId]: 'error'
-      }))
-
       throw error
     }
-  }, [socket, isConnected, currentUserId, getRoomId, onMessageSent, clientMetaData])
+  }, [socket, isConnected, currentUserId, clientMetaData])
 
   const setTypingStatus = useCallback((isTyping: boolean, recipientId: string) => {
     //if (!socket || !isConnected) return
@@ -313,11 +248,107 @@ export function ChatProvider({
     //})
   }, [socket, isConnected])
 
-  const getLastMessage = useCallback((userId: string) => {
-    const roomId = getRoomId(userId)
-    const roomMessages = messages[roomId] || []
-    return roomMessages[roomMessages.length - 1]
-  }, [messages, getRoomId])
+  const getConversations = useCallback(async (options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    conversations: ConversationData[];
+    hasMore: boolean;
+  }> => {
+
+
+    setLoadingConversations(true)
+
+    try {
+      return new Promise<{conversations: ConversationData[], hasMore: boolean}>((resolve, reject) => {
+       socket?.emit('chat:conversations', {
+        limit: options?.limit || 50,
+        offset: options?.offset || 0
+       }, (response: {
+        success: boolean;
+        conversations?: any[];
+        hasMore?: boolean;
+        error?: string;
+       }) => {
+        setLoadingConversations(false)
+
+        if(response && response.success) {
+
+          const conversations = response.conversations || [];
+            conversations.forEach(conv => {
+              if (conv.lastMessage) {
+                lastMessagesRef.current.set(conv.otherUserId, conv.lastMessage);
+              }
+          });
+      
+          resolve({
+            conversations: conversations,
+            hasMore: response.hasMore || false,
+          })
+        } else {
+          reject(new Error((response && response.error) || 'Failed to load conversations'))
+        }
+       })
+      })
+    } catch (error) {
+      setLoadingConversations(false)
+      console.error('Error laoding conversations:', error)
+      throw error
+    }
+  }, [socket, isConnected])
+
+  const getLastMessage = useCallback((userId: string): ChatMessage | undefined => {
+    return lastMessagesRef.current.get(userId);
+  }, [])
+
+  const getMessages = useCallback(async (
+    roomId: string,
+    options?: {
+      limit?: number;
+      before?: string;
+      after?: string;
+    }
+  ): Promise<ChatMessage[]> => {
+
+    return new Promise<ChatMessage[]>((resolve, reject) => {
+      socket?.emit('chat:messages', {
+        roomId,
+        limit: options?.limit || 50,
+        before: options?.before,
+        after: options?.after
+      }, (response: {
+        success: boolean;
+        messages?: ChatMessage[];
+        error?: string;
+      }) => {
+        if (response && response.success) {
+          const messages = response.messages || [];
+
+          if(!messagesRef.current[roomId]) {
+            messagesRef.current[roomId] = [];
+          }
+          const existingIds = new Set(messagesRef.current[roomId].map(m => m.messageId));
+          const newMessages = messages.filter(m => !existingIds.has(m.messageId));
+          
+          messagesRef.current[roomId] = [
+            ...messagesRef.current[roomId],
+            ...newMessages
+          ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          
+          // Update messages state
+          setMessages(prev => ({
+            ...prev,
+            [roomId]: messagesRef.current[roomId]
+          }));
+          
+          resolve(messages);
+        } else {
+          reject(new Error(response?.error || 'Failed to load messages'));
+        }
+      });
+    });
+  }, [socket]);
+
 
   const clearMessages = useCallback((roomId: string) => {
     setMessages(prev => {
@@ -326,21 +357,6 @@ export function ChatProvider({
     })
   }, [])
 
-
-  const getMessageStatus = useCallback((messageId: string): MessageStatus => {
-    console.log(`Getting status for message ${messageId}:`, 
-      deliveryStatus[messageId] || (Object.keys(pendingMessages).includes(messageId) ? 'pending' : 'sent'));
-      
-    if (deliveryStatus[messageId]) {
-      return deliveryStatus[messageId];
-    }
-    
-    if (Object.keys(pendingMessages).includes(messageId)) {
-      return 'pending';
-    }
-    
-    return 'sent';
-  }, [deliveryStatus, pendingMessages]);
 
   const markMessageAsRead = useCallback((messageId: string, roomId: string) => {
     setMessages(prev => ({
@@ -376,14 +392,10 @@ export function ChatProvider({
         avatar: clientMetaData?.avatar || undefined
       };
     }
-
-   // if (selectedUser && selectedUser.uid === userId) {
-   //   return selectedUser;
-   // }
     
     // Look through all messages to find metadata for this user
-    for (const roomId in messages) {
-      const roomMessages = messages[roomId];
+    for (const roomId in messagesRef.current) {
+      const roomMessages = messagesRef.current[roomId];
       
       // Look for messages from this user (they'll have metadata)
       const messageWithMetadata = roomMessages.find(msg => 
@@ -424,22 +436,36 @@ export function ChatProvider({
 
   // Update the getChatUsers function to prioritize local user data
   const getChatUsers = useCallback((): User[] => {
+    // Extract all unique user IDs from room IDs and messages
     const userIds = new Set<string>();
     
-    // Extract all unique user IDs from room IDs
-    Object.keys(messages).forEach(roomId => {
+    // Add users from known room IDs
+    Object.keys(messagesRef.current).forEach(roomId => {
       const [user1, user2] = roomId.split('_');
       if (user1 !== currentUserId) userIds.add(user1);
       if (user2 !== currentUserId) userIds.add(user2);
     });
     
-    // Convert user IDs to user objects using message metadata
-    return Array.from(userIds).map(userId => getUserFromMessages(userId) || {
-      uid: userId,
-      name: userId.substring(0, 8),
-      email: `${userId}@example.com`
+    // Add users from known users ref (populated from message metadata)
+    Object.keys(knownUsersRef.current).forEach(userId => {
+      if (userId !== currentUserId) userIds.add(userId);
     });
-  }, [messages, currentUserId, getUserFromMessages]);
+    
+    // Convert user IDs to user objects
+    return Array.from(userIds).map(userId => {
+      // Check known users from messages
+      if (knownUsersRef.current[userId]) {
+        return knownUsersRef.current[userId];
+      }
+      
+      // Fallback to basic user info
+      return {
+        uid: userId,
+        name: userId.substring(0, 8),
+        email: `${userId}@example.com`
+      };
+    });
+  }, [currentUserId, userListVersion]);
 
   const getChatUsersLocalData = useCallback((): User[] => {
     const userMap = new Map<string, User>();
@@ -511,13 +537,18 @@ export function ChatProvider({
       clearMessages,
       markMessageAsRead,
       getLastMessage,
+      getMessages,
+      getConversations,
       getChatUserIds,
       getChatUsers,
       getChatUsersLocalData,
       getUserById,
       getRoomId,
       updateClientData,
-      getMessageStatus
+      //getMessageStatus,
+      subscribeToMessages,
+      subscribeToErrors,
+      subscribeToMessageStatus
     }}>
       {children}
     </ChatCtx.Provider>

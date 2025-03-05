@@ -1,9 +1,9 @@
-
+import type { User } from "@/lib/db/types"
 
 export type ChatStatus = 'sent' | 'delivered' | 'read'
 export type MessageType = 'text' | 'image' | 'file'
 export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unknown'
-export type MessageStatus = 'pending' | 'delivered' | 'sent' | 'error'
+export type MessageStatus = 'pending' | 'delivered' | 'sent' | 'received' | 'error'
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type StorageType = 'localStorage' | 'sessionStorage' | 'none';
 
@@ -37,12 +37,6 @@ export interface ClientAdditionalData {
   avatar?: string | null
 }
 
-export interface ClientMetaData {
-  name?: string | null
-  email?: string | null
-  avatar?: string | null
-}
-
 
 export interface StatusUpdate {
     userId: string;
@@ -62,10 +56,24 @@ export interface StatusUpdate {
       callback?: (response: { success: boolean; messageId?: string; error?: string }) => void
     ) => void;
     'chat:profile_update': (data: ClientAdditionalData) => void;
-    'chat:confirm_receipt': (
-      data: { messageId: string },
-      callback?: (response: { received: boolean }) => void
-    ) => void;
+    //'chat:confirm_receipt': (data: { messageId: string }, callback?: (response: { received: boolean }) => void) => void;
+
+    'chat:status': (data: { messageId: string; status: string }, callback?: (response: { received: boolean }) => void) => void;
+    'chat:subscribe_status': () => void;
+    'chat:unsubscribe_status': () => void;
+    'chat:messages': (options: { roomId: string; limit?: number; before?: string; after?: string }, callback?: (response: { success: boolean; messages?: ChatMessage[]; error?: string }) => void) => void;
+    'chat:conversations': (options: { limit?: number; offset?: number }, callback?: (response: { success: boolean; conversations?: any[]; hasMore?: boolean; error?: string }) => void) => void;
+    'chat:history': (data: { 
+      roomId: string; 
+      limit?: number; 
+      before?: string; 
+      after?: string 
+    }, callback?: (response: { 
+      success: boolean; 
+      messages?: ChatMessage[]; 
+      error?: string 
+    }) => void) => void;
+
     'presence:update': (presence: Presence) => void;
   }
 
@@ -78,6 +86,12 @@ export interface StatusUpdate {
     clientId: string
     apiKey: string
   }
+
+  export interface ClientMetaData {
+    name?: string | null
+    email?: string | null
+    avatar?: string | null
+  }
   
 export interface ChatMessage {
   messageId: string;
@@ -88,6 +102,14 @@ export interface ChatMessage {
   timestamp: string;
   metaData?: ClientMetaData;
   toData?: ClientMetaData;
+}
+
+export interface ConversationData {
+  roomId: string;
+  otherUserId: string;
+  lastMessage: ChatMessage;
+  unreadCount: number;
+  lastActivity: number;
 }
 
 export interface ChatError {

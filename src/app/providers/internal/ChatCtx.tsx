@@ -1,7 +1,14 @@
 'use client'
 
 import { createContext, useContext } from "react"
-import type {  ChatMessage, ChatError, MessageStatus, ClientAdditionalData, ClientMetaData} from "@/app/providers/utils/socket"
+import type {  
+  ChatMessage, 
+  ChatError, 
+  MessageStatus, 
+  ClientAdditionalData, 
+  ClientMetaData,
+  ConversationData
+} from "@/app/providers/utils/socket"
 import type { User } from '@/lib/db/types'
 
 export interface ChatCtxState {
@@ -20,16 +27,24 @@ export interface ChatCtxActions {
   setSelectedUser: (user: User | null) => void
   sendMessage: (content: string, recipientId: string, recipientData?: User) => Promise<string>
   setTypingStatus: (isTyping: boolean, recipientId: string) => void
-  getMessageStatus: (messageId: string) => MessageStatus
+  //getMessageStatus: (messageId: string) => MessageStatus
   clearMessages: (roomId: string) => void
   markMessageAsRead: (messageId: string, roomId: string) => void
   getLastMessage: (userId: string) => ChatMessage | undefined
+  getMessages: (roomId: string, options?: { limit?: number; before?: string; after?: string }) => Promise<ChatMessage[]>
   getChatUserIds: () => string[]
   getChatUsers: () => User[]
-  getChatUsersLocalData: () => User[], 
+  getChatUsersLocalData: () => User[]
   getUserById: (userId: string) => User
   getRoomId: (userId: string) => string
   updateClientData: (data: ClientAdditionalData) => void
+  subscribeToMessages: (callback: (message: ChatMessage) => void) => () => void
+  subscribeToErrors: (callback: (error: ChatError) => void) => () => void
+  subscribeToMessageStatus: (callback: (messageId: string, status: string) => void) => () => void
+  getConversations: (options?: { limit?: number; offset?: number }) => Promise<{
+    conversations:ConversationData[];
+    hasMore: boolean;
+  }>;
 }
 
 export interface ChatEventHandlers {
@@ -53,25 +68,3 @@ export function useChat() {
     }
     return context
 }
-
-export function isPendingMessage(messageId: string, context: ChatCtxValue): boolean {
-    return context.pendingMessages.includes(messageId)
-}
-
-export function getMessageStatus(
-  messageId: string, 
-  context: ChatCtxValue
-): MessageStatus {
-  // First check if the message is in the delivery status map
-  if (context.deliveryStatus[messageId]) {
-    return context.deliveryStatus[messageId];
-  }
-  
-  // If not found in delivery status, check if it's pending
-  if (context.pendingMessages.includes(messageId)) {
-    return 'pending';
-  }
-  
-  return 'delivered';
-}
-
