@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef} from 'react'
+import { useState, useCallback, useRef} from 'react'
 import { useSocket } from './SocketCtx'
 import { ChatCtx } from './ChatCtx'
 import type { 
@@ -11,7 +11,8 @@ import type {
   MessageStatus,
   ConversationData
  } from "@/app/providers/utils/socket"
-import type { User } from '@/lib/db/types'
+
+ 
 
 interface ChatProviderProps {
   children: React.ReactNode
@@ -44,37 +45,19 @@ export function ChatProvider({
   onProfileUpdated
 }: ChatProviderProps) {
   const { socket, isConnected, clientId } = useSocket()
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [localUserData, setLocalUserData] = useState<Record<string, User>>({})
+  const [selectedUser, setSelectedUser] = useState<ClientMetaData | null>(null)
+  const [localUserData, setLocalUserData] = useState<Record<string, ClientMetaData>>({})
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
   const [isTyping, setIsTyping] = useState<Record<string, boolean>>({})
   const [pendingMessages, setPendingMessages] = useState<Record<string, PendingMessage>>({})
   const [deliveryStatus, setDeliveryStatus] = useState<Record<string, MessageStatus>>({})
   const currentUserId = clientId
   const messagesRef = useRef<Record<string, ChatMessage[]>>({})
-  const knownUsersRef = useRef<Record<string, User>>({})
-  const chatUsersRef = useRef<Map<string, User>>(new Map())
+  const knownUsersRef = useRef<Record<string, ClientMetaData>>({})
+  const chatUsersRef = useRef<Map<string, ClientMetaData>>(new Map())
   const lastMessagesRef = useRef<Map<string, ChatMessage>>(new Map())
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [userListVersion, setUserListVersion] = useState(0)
-
-
-  const initializeChat = useCallback(() => {
-    if (socket && isConnected) {
-      // Send initial profile data if available
-      if (clientAdditionalData) {
-        console.log('Sending initial profile data:', clientAdditionalData);
-        socket.emit('chat:profile_update', clientAdditionalData);
-        console.log('Initial profile data sent:', clientAdditionalData);
-      }
-    }
-  }, [socket, isConnected, clientAdditionalData]);
-
-  useEffect(() => {
-    if (socket && isConnected) {
-      initializeChat()
-    }
-  }, [socket, isConnected, initializeChat])
 
 
   const subscribeToMessages = useCallback((
@@ -135,6 +118,7 @@ export function ChatProvider({
     }
   }, [socket])
   
+  
   const subscribeToMessageStatus = useCallback((
     callback: (messageId: string, status: string) => void
   ) => {
@@ -187,38 +171,42 @@ export function ChatProvider({
     }
   }, [socket]);
 
+
   const getRoomId = useCallback((userId: string): string => {
     return [currentUserId, userId].sort().join('_')
   }, [currentUserId])
 
-  const updateClientData = useCallback((data: ClientAdditionalData) => {
-    if (socket && isConnected) {
-      socket.emit('chat:profile_update', data);
-      console.log('Profile data updated:', data);
-      onProfileUpdated?.();
-    }
-  }, [socket, isConnected, onProfileUpdated]);
 
   const sendMessage = useCallback(async (
     content: string,
     recipientId: string,
-    recipientData?: User
+    recipientData?: ClientMetaData
   ): Promise<string> => {
     if (!socket || !isConnected) {
       throw new Error('Socket not connected')
     }
 
     const metaData = clientMetaData || {
+      uid: currentUserId,
       name: currentUserId.substring(0, 8),
       email:  `${currentUserId}@example.com`,
     };
+
+    const toData = recipientData || {
+      uid: recipientId,
+      name: recipientId.substring(0, 8),
+      email: `${recipientId}@example.com`,
+    }
+
+
 
     try {
       return new Promise<string>((resolve, reject) => {
         socket.emit('chat:private', {
         targetId: recipientId,
         message: content,
-        metaData
+        metaData,
+        toData
       }, (response: { 
         success: boolean; 
         messageId?: string; 
@@ -382,7 +370,7 @@ export function ChatProvider({
     return Array.from(userIds)
   }, [messages, currentUserId])
 
-  const getUserFromMessages = useCallback((userId: string): User | null => {
+  const getUserFromMessages = useCallback((userId: string): ClientMetaData | null => {
     // If this is the current user, use client metadata
     if (userId === currentUserId) {
       return {
@@ -435,7 +423,7 @@ export function ChatProvider({
 
 
   // Update the getChatUsers function to prioritize local user data
-  const getChatUsers = useCallback((): User[] => {
+  const getChatUsers = useCallback((): ClientMetaData[] => {
     // Extract all unique user IDs from room IDs and messages
     const userIds = new Set<string>();
     
@@ -466,9 +454,10 @@ export function ChatProvider({
       };
     });
   }, [currentUserId, userListVersion]);
+  
 
-  const getChatUsersLocalData = useCallback((): User[] => {
-    const userMap = new Map<string, User>();
+  const getChatUsersLocalData = useCallback((): ClientMetaData[] => {
+    const userMap = new Map<string, ClientMetaData>();
   
     // First add any users from our local data store
     Object.entries(localUserData).forEach(([userId, userData]) => {
@@ -512,8 +501,20 @@ export function ChatProvider({
   }, [messages, currentUserId, localUserData]);
 
   // Function to get user by ID for components to use
-  const getUserById = useCallback((userId: string): User => {
-    return getUserFromMessages(userId) || {
+  const getUserById = useCallback((userId: string): ClientMetaData => {
+    // getUserFromMessages already checks messages and provides fallbacks
+    const userFromMessages = getUserFromMessages(userId);
+    if (userFromMessages) return userFromMessages;
+    
+    // Only add the check for lastMessagesRef if not already in getUserFromMessages
+    for (const [_, message] of lastMessagesRef.current.entries()) {
+      if (message.fromId === userId && message.metaData) {
+        return message.metaData;
+      }
+    }
+    
+    // Fallback to basic info
+    return {
       uid: userId,
       name: userId.substring(0, 8),
       email: `${userId}@example.com`
@@ -544,7 +545,6 @@ export function ChatProvider({
       getChatUsersLocalData,
       getUserById,
       getRoomId,
-      updateClientData,
       //getMessageStatus,
       subscribeToMessages,
       subscribeToErrors,

@@ -8,22 +8,13 @@ import { formatDistanceToNow } from 'date-fns'
 import { usePresence } from "@/app/providers/hooks/usePresence"
 import { useChat } from "@/app/providers/internal/ChatCtx";
 import type {  UserStatus, ChatMessage, ConversationData } from "@/app/providers/utils/socket"
-import type { User, Chat} from '@/lib/db/types'
-import { getChats } from "@/lib/chat"
+import { useSocket } from "@/app/providers/internal/SocketCtx"
+import { User } from "@/lib/db/types"
 
 interface ChatHistoryProps {
   selectedUserId?: string;
   onSelectChat: (user: User) => void;
 }
-
-interface LastMessageType {
-  message: string;
-  timestamp: string;
-  fromId: string;
-  toId: string;
-  fromData?: any;
-}
-
 
 const ChatButtonItem = ({
   user,
@@ -140,13 +131,18 @@ export function ChatHistory({
     setSelectedUser,
     subscribeToMessages,
     getConversations,
-    getLastMessage
+    getLastMessage,
+    getChatUserIds,
+    getUserById,
   } = useChat()
+
+  const { clientId } = useSocket()
 
   const [conversations, setConversations] = useState<ConversationData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
+  const currentUserId = clientId
 
   useEffect(() => {
     let isMounted = true
@@ -170,26 +166,46 @@ export function ChatHistory({
     }
 
     const handleNewMessage = (message: ChatMessage) => {
+      if (!isMounted) return;
       console.log('New message received:', message); // Debug log
-      setConversations(prev => {
-        return prev.map(conv => {
-          // For sender's view: if otherUserId matches the recipient
-          // For recipient's view: if otherUserId matches the sender
-          const isRelevantConversation = 
-            (message.fromId === conv.otherUserId) || 
-            (message.toId === conv.otherUserId);
+      setConversations(prevConversations => {
+          // Extract both IDs from roomId (format: "user1_user2")
+          const [user1, user2] = message.roomId.split('_');
+          const recipientId = user1 === message.fromId ? user2 : user1;
 
-          if (isRelevantConversation) {
-            console.log('Updating conversation for:', conv.otherUserId); // Debug log
-            return {
-              ...conv,
-              lastMessage: message
+          const conversationExists = prevConversations.some(
+            conv => conv.otherUserId === message.fromId || conv.otherUserId === recipientId
+          );
+
+          if (!conversationExists) {
+            // Add new conversation at the beginning
+            const newConversation: ConversationData = {
+              roomId: message.roomId,
+              otherUserId: recipientId === currentUserId ? message.fromId : recipientId,
+              lastMessage: message,
+              unreadCount: 0,
+              lastActivity: new Date(message.timestamp).getTime()
             };
+            return [newConversation, ...prevConversations];
           }
-          return conv;
+
+          return prevConversations.map(conv => {
+            const isRelevantConversation = 
+              conv.otherUserId === message.fromId || 
+              conv.otherUserId === recipientId;
+  
+            if (isRelevantConversation) {
+              console.log('Updating conversation for:', conv.otherUserId);
+              return {
+                ...conv,
+                lastMessage: message,
+                updatedAt: message.timestamp // If you have this field
+              };
+            }
+            return conv;
+          });
         });
-      });
-    }
+      };
     
     loadConversations()
     const unsubscribe = subscribeToMessages(handleNewMessage)
@@ -236,12 +252,13 @@ export function ChatHistory({
           const presenceUpdate = presenceState.get(otherUserId)
           const status = presenceUpdate?.presence.status || 'unknown'
           const lastMessage = getLastMessage(otherUserId) || conversation.lastMessage;
+          const otherUserData = lastMessage.toData;
 
-          const user = {
+          const user: User = {
             uid: otherUserId,
-            name: otherUserId.substring(0, 8), // Use a shortened ID as name
-            email: '',
-            avatar: ''
+            name: otherUserData?.name || otherUserData?.email?.split('@')[0] || otherUserId.substring(0, 8),
+            email: otherUserData?.email || '',
+            avatar: otherUserData?.avatar || ''
           };
           
           

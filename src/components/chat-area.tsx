@@ -1,10 +1,5 @@
 'use client'
 
-import { useState } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Send } from 'lucide-react'
 import { ChatHeader } from "./chat-header"
 import { MessageList } from "./message-list"
 import { MessageInput } from "./message-input"
@@ -22,7 +17,7 @@ export function ChatArea({ selectedUser }: ChatAreaProps) {
 
   const handleSendMessage = async (content: string) => {
     if (selectedUser && content.trim()) {
-      await sendMessage(content, selectedUser.uid)
+      await sendMessage(content, selectedUser.uid, selectedUser)
     }
   }
 

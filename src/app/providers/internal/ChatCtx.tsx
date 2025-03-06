@@ -9,10 +9,9 @@ import type {
   ClientMetaData,
   ConversationData
 } from "@/app/providers/utils/socket"
-import type { User } from '@/lib/db/types'
 
 export interface ChatCtxState {
-  selectedUser: User | null
+  selectedUser: ClientMetaData | null
   messages: Record<string, ChatMessage[]>
   isConnected: boolean
   isTyping: Record<string, boolean>
@@ -24,8 +23,8 @@ export interface ChatCtxState {
 }
 
 export interface ChatCtxActions {
-  setSelectedUser: (user: User | null) => void
-  sendMessage: (content: string, recipientId: string, recipientData?: User) => Promise<string>
+  setSelectedUser: (user: ClientMetaData | null) => void
+  sendMessage: (content: string, recipientId: string, recipientData?: ClientMetaData) => Promise<string>
   setTypingStatus: (isTyping: boolean, recipientId: string) => void
   //getMessageStatus: (messageId: string) => MessageStatus
   clearMessages: (roomId: string) => void
@@ -33,11 +32,11 @@ export interface ChatCtxActions {
   getLastMessage: (userId: string) => ChatMessage | undefined
   getMessages: (roomId: string, options?: { limit?: number; before?: string; after?: string }) => Promise<ChatMessage[]>
   getChatUserIds: () => string[]
-  getChatUsers: () => User[]
-  getChatUsersLocalData: () => User[]
-  getUserById: (userId: string) => User
+  getChatUsers: () => ClientMetaData[]
+  getChatUsersLocalData: () => ClientMetaData[]
+  getUserById: (userId: string) => ClientMetaData
   getRoomId: (userId: string) => string
-  updateClientData: (data: ClientAdditionalData) => void
+  //updateClientData: (data: ClientAdditionalData) => void
   subscribeToMessages: (callback: (message: ChatMessage) => void) => () => void
   subscribeToErrors: (callback: (error: ChatError) => void) => () => void
   subscribeToMessageStatus: (callback: (messageId: string, status: string) => void) => () => void

@@ -52,7 +52,7 @@ export interface StatusUpdate {
   
   export interface ClientToServerEvents {
     'chat:private': (
-      data: { targetId: string; message: string; metaData?: ClientMetaData },
+      data: { targetId: string; message: string; metaData?: ClientMetaData; toData?: ClientMetaData },
       callback?: (response: { success: boolean; messageId?: string; error?: string }) => void
     ) => void;
     'chat:profile_update': (data: ClientAdditionalData) => void;
@@ -88,9 +88,10 @@ export interface StatusUpdate {
   }
 
   export interface ClientMetaData {
+    uid: string
     name?: string | null
     email?: string | null
-    avatar?: string | null
+    avatar?: string
   }
   
 export interface ChatMessage {
