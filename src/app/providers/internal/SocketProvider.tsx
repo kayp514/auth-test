@@ -259,7 +259,7 @@ export function SocketProvider({ children, config }: SocketProviderProps) {
         connectionAttempted.current = false
       }
     } catch (error) {
-      console.error("Socket initialization error:", error)
+      //console.error("Socket initialization error:", error)
 
       toast.error("Connection error", {
         description: "Failed to initialize socket connection. Please try again later.",

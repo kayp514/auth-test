@@ -1,4 +1,4 @@
-import type { User } from "@/lib/db/types"
+
 
 export type ChatStatus = 'sent' | 'delivered' | 'read'
 export type MessageType = 'text' | 'image' | 'file'
@@ -6,6 +6,7 @@ export type UserStatus = 'online' | 'offline' | 'away' | 'busy' | 'dnd' | 'unkno
 export type MessageStatus = 'pending' | 'delivered' | 'sent' | 'received' | 'error'
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 export type StorageType = 'localStorage' | 'sessionStorage' | 'none';
+
 
 export interface Presence {
   status: UserStatus
@@ -88,11 +89,12 @@ export interface StatusUpdate {
   }
 
   export interface ClientMetaData {
-    uid: string
+    uid: string | undefined
     name?: string | null
     email?: string | null
-    avatar?: string
+    avatar?: string | null
   }
+
   
 export interface ChatMessage {
   messageId: string;
