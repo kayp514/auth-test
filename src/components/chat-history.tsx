@@ -252,13 +252,18 @@ export function ChatHistory({
           const presenceUpdate = presenceState.get(otherUserId)
           const status = presenceUpdate?.presence.status || 'unknown'
           const lastMessage = getLastMessage(otherUserId) || conversation.lastMessage;
-          const otherUserData = lastMessage.toData;
+
+          const isFromCurrentUser = lastMessage.fromId === currentUserId;
+
+          const userData = isFromCurrentUser 
+          ? lastMessage.toData 
+          : lastMessage.metaData;
 
           const user: User = {
             uid: otherUserId,
-            name: otherUserData?.name || otherUserData?.email?.split('@')[0] || otherUserId.substring(0, 8),
-            email: otherUserData?.email || '',
-            avatar: otherUserData?.avatar || ''
+            name: userData?.name || userData?.email?.split('@')[0] || otherUserId.substring(0, 8),
+            email: userData?.email || '',
+            avatar: userData?.avatar || ''
           };
           
           
