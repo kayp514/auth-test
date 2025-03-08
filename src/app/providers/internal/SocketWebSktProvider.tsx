@@ -19,7 +19,6 @@ import { encryptAndPackMessage, decryptAndUnpackMessage } from '../utils/binaryP
 // Constants
 const SOCKET_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_SOCKET_URL,
-  //baseUrl: 'http://localhost:3001',
   room: 'notifications',
   reconnectionAttempts: 5,
   reconnectionDelay: 10000,

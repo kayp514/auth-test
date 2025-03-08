@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/app/providers/server/auth'
 import { generateKeyPair } from '@/app/providers/utils/encryption';
 
-const AUTH_SERVER_URL = 'http://localhost:3001'
+const AUTH_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_URL
 
 export async function POST(request: Request) {
   try {
