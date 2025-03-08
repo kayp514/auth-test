@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef} from 'react'
 import { useSocket } from './SocketCtx'
+import { useWebSkt } from './SocketWebSktCtx'
 import { ChatCtx } from './ChatCtx'
 import type { 
   ChatMessage, 
@@ -44,7 +45,8 @@ export function ChatProvider({
   onTypingStatusChange,
   onProfileUpdated
 }: ChatProviderProps) {
-  const { socket, isConnected, clientId } = useSocket()
+  //const { socket, isConnected, clientId } = useSocket()
+  const { socket, isConnected, clientId } = useWebSkt()
   const [selectedUser, setSelectedUser] = useState<ClientMetaData | null>(null)
   const [localUserData, setLocalUserData] = useState<Record<string, ClientMetaData>>({})
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})

@@ -6,13 +6,14 @@ import { MessageInput } from "./message-input"
 import type { User } from '@/lib/db/types'
 import { useChat } from "@/app/providers/internal/ChatCtx"
 import { useSocket } from "@/app/providers/internal/SocketCtx"
+import { useWebSkt } from "@/app/providers/internal/SocketWebSktCtx"
 
 interface ChatAreaProps {
   selectedUser: User | null
 }
 
 export function ChatArea({ selectedUser }: ChatAreaProps) {
-  const { clientId } = useSocket()
+  const { clientId } = useWebSkt()
   const { sendMessage, setTypingStatus } = useChat()
 
   const handleSendMessage = async (content: string) => {

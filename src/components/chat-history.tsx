@@ -10,6 +10,7 @@ import { useChat } from "@/app/providers/internal/ChatCtx";
 import type {  UserStatus, ChatMessage, ConversationData } from "@/app/providers/utils/socket"
 import { useSocket } from "@/app/providers/internal/SocketCtx"
 import { User } from "@/lib/db/types"
+import { useWebSkt } from "@/app/providers/internal/SocketWebSktCtx"
 
 interface ChatHistoryProps {
   selectedUserId?: string;
@@ -136,7 +137,7 @@ export function ChatHistory({
     getUserById,
   } = useChat()
 
-  const { clientId } = useSocket()
+  const { clientId } = useWebSkt()
 
   const [conversations, setConversations] = useState<ConversationData[]>([])
   const [loading, setLoading] = useState(true)

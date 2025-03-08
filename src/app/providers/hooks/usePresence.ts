@@ -3,10 +3,11 @@
 import { useCallback, useMemo } from 'react'
 import { useSocket } from '../internal/SocketCtx'
 import type { UserStatus } from "@/app/providers/utils/socket"
+import { useWebSkt } from '../internal/SocketWebSktCtx'
 
 
 export function usePresence() {
-  const { setPresence, presenceState } = useSocket()
+  const { setPresence, presenceState } = useWebSkt()
 
   //console.log('Raw presenceState:', presenceState) // Debug log
 

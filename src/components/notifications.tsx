@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useSocket } from '@/app/providers/internal/SocketCtx';
+import { useWebSkt } from '@/app/providers/internal/SocketWebSktCtx';
 
 interface NotificationSenderProps {
   className?: string;
 }
 
 export function NotificationSender({ className = '' }: NotificationSenderProps) {
-  const { isConnected, connectionError, sendNotification, socketId } = useSocket();
+  const { isConnected, connectionError, sendNotification, socketId } = useWebSkt();
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
   const [status, setStatus] = useState('');

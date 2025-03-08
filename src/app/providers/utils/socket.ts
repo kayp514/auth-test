@@ -64,18 +64,11 @@ export interface StatusUpdate {
     'chat:unsubscribe_status': () => void;
     'chat:messages': (options: { roomId: string; limit?: number; before?: string; after?: string }, callback?: (response: { success: boolean; messages?: ChatMessage[]; error?: string }) => void) => void;
     'chat:conversations': (options: { limit?: number; offset?: number }, callback?: (response: { success: boolean; conversations?: any[]; hasMore?: boolean; error?: string }) => void) => void;
-    'chat:history': (data: { 
-      roomId: string; 
-      limit?: number; 
-      before?: string; 
-      after?: string 
-    }, callback?: (response: { 
-      success: boolean; 
-      messages?: ChatMessage[]; 
-      error?: string 
-    }) => void) => void;
 
     'presence:update': (presence: Presence) => void;
+
+    'client:publicKey': (publicKey: string) => void;
+    'encrypted': (data: { event: string; data: string }) => void;
   }
 
   export interface InterServerEvents {

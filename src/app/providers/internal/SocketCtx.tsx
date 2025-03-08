@@ -9,39 +9,19 @@ import type {
  } from "@/app/providers/utils/socket"
 
 
+
 export interface SocketCtxState {
-  socket: Socket<any, ClientToServerEvents> | null
-  isConnected: boolean
-  connectionError: string | null
-  notifications: Notification[]
-  socketId: string | null
-  presenceState: Map<string, PresenceUpdate> 
-  clientId: string
-  sessionId: string | null
+
 }
 
 export interface SocketCtxActions {
-  sendNotification: (type: string, message: string, data?: Record<string, unknown>) => Promise<void>
-  setPresence: (presence: Presence) => void
-  disconnect: () => void
-  clearNotifications: () => void
+
 }
 
 export interface SocketCtxValue extends SocketCtxState, SocketCtxActions {}
 
 const initialState: SocketCtxValue = {
-  socket: null,
-  isConnected: false,
-  connectionError: null,
-  notifications: [],
-  presenceState: new Map(), 
-  socketId: null,
-  clientId: '',
-  sessionId: null,
-  sendNotification: async () => {},
-  setPresence: () => {},
-  disconnect: () => {},
-  clearNotifications: () => {}
+
 
 }
 
