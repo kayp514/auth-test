@@ -60,7 +60,7 @@ const createSocketInstance = ({
     reconnectionDelay: SOCKET_CONFIG.reconnectionDelay,
     reconnectionDelayMax: SOCKET_CONFIG.reconnectionDelayMax,
     timeout: SOCKET_CONFIG.connectionTimeout,
-    autoConnect: true,
+    //autoConnect: true,
     auth: {
       clientId: config.clientId,
       apiKey: config.apiKey,

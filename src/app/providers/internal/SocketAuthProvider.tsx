@@ -21,7 +21,13 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
     keyExchangeError: null
   });
 
+  const authInProgress = useRef(false)
+  const configRef = useRef(config)
+
   const authenticate = async () => {
+    if (authInProgress.current) return null
+
+    authInProgress.current = true
     setState(prev => ({ ...prev, connectionState: 'authenticating' }));
     
     try {
@@ -88,6 +94,17 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
   };
 
   useEffect(() => {
+    if (
+      configRef.current.clientId === config.clientId &&
+      configRef.current.apiKey === config.apiKey &&
+      state.connectionState !== "idle"
+    ) {
+      console.log("Skipping authentication, already in progress or completed")
+      return
+    }
+
+    configRef.current = config
+
     const initAuth = async () => {
       try {
         // Check if we already have a valid session
@@ -103,14 +120,21 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
         }
 
         // Start new authentication flow
-        const { sessionId } = await authenticate()
-        await exchangeKeys(sessionId)
+        const result = await authenticate()
+        if (result && result.sessionId) {
+          await exchangeKeys(result.sessionId)
+        }
       } catch (error) {
         console.error("Authentication process failed:", error)
       }
     }
 
     initAuth()
+
+    return () => {
+      console.log("SocketAuthProvider unmounting")
+      authInProgress.current = false
+    }
   }, [config])
 
   return (

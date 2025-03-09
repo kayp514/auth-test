@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     // Send keys to authentication server
-    const response = await fetch(`${AUTH_SERVER_URL}/api/keys`, {
+    const response = await fetch(`${AUTH_SERVER_URL}/api/auth/keys`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
