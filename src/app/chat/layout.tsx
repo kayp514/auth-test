@@ -23,7 +23,7 @@ export default async function ChatLayout({
 
   const socketConfig = createSocketConfig(
     user?.uid || "", 
-    API_KEY ?? 'fake_api_key',
+    API_KEY ?? 'fake_deployed_key',
     { 
       storageType: 'localStorage',
       storageKey: 'app_socket_session'
