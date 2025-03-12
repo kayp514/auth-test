@@ -69,6 +69,8 @@ export interface StatusUpdate {
 
     'client:publicKey': (publicKey: string) => void;
     'encrypted': (data: { event: string; data: string }) => void;
+
+    'binary': (data: ArrayBuffer, isEncrypted: boolean) => void;
   }
 
   export interface InterServerEvents {

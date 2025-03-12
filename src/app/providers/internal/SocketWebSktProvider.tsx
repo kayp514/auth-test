@@ -87,9 +87,78 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
   const connectionAttempted = useRef(false)
   const configRef = useRef(config)
 
+    // Event handlers
+    const handlePresenceEnter = useCallback((data: PresenceUpdate) => {
+      if (data.clientId === config.clientId) return;
+      setState(prev => ({
+        ...prev,
+        presenceState: new Map(prev.presenceState).set(data.clientId, data)
+      }));
+    }, [config.clientId]);
+    
+    const handlePresenceUpdate = useCallback((data: PresenceUpdate) => {
+      setState(prev => ({
+        ...prev,
+        presenceState: new Map(prev.presenceState).set(data.clientId, data)
+      }));
+    }, []);
+    
+    const handlePresenceSync = useCallback((updates: PresenceUpdate[]) => {
+      setState(prev => {
+        const newPresenceState = new Map();
+        updates.forEach(update => {
+          newPresenceState.set(update.clientId, update);
+        });
+        return { ...prev, presenceState: newPresenceState };
+      });
+    }, []);
+    
+    const handlePresenceLeave = useCallback(({ clientId }: { clientId: string }) => {
+      setState(prev => {
+        const newPresenceState = new Map(prev.presenceState);
+        newPresenceState.delete(clientId);
+        return { ...prev, presenceState: newPresenceState };
+      });
+    }, []);
+    
+    const handleNotification = useCallback((notification: Notification) => {
+      setState(prev => ({
+        ...prev,
+        notifications: [...prev.notifications, notification]
+      }));
+    }, []);
 
 
   const setupSocketHandlers = useCallback((socketInstance: Socket) => {
+    const originalEmit = socketInstance.emit;
+    
+    socketInstance.emit = function(event: string, ...args: any[]): Socket {
+      const payload = args[0];
+
+      if (isEncryptionReady()) {
+        try {
+          const encryptedBase64 = encryptForServer(JSON.stringify({ event, data: payload }));
+          if (encryptedBase64) {
+            const binaryString = atob(encryptedBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            originalEmit.call(this, 'binary', bytes.buffer, true);
+            return this;
+          }
+        } catch (error) {
+          console.error('Encryption error:', error);
+        }
+      }
+
+      // Fallback to unencrypted
+      const binaryBuffer = new TextEncoder().encode(
+        JSON.stringify({ event, data: payload })
+      ).buffer;
+      originalEmit.call(this, 'binary', binaryBuffer, false);
+      return this; // Return socket instance for chaining
+    };
     // Basic connection handlers
     socketInstance.on("connect", () => {
       console.log("Socket connected with ID:", socketInstance.id);
@@ -121,12 +190,16 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     });
   
     // Binary message handler
-    socketInstance.on('binary', (data: ArrayBuffer) => {
+    socketInstance.on('binary', (data: ArrayBuffer, isEncrypted: boolean) => {
       try {
-        const decryptedData = decryptAndUnpackMessage(config.clientId, data);
-        if (decryptedData) {
-          const { event, data: messageData } = decryptedData;
-          console.log(`Received encrypted ${event} event`);
+        //const decryptedData = decryptAndUnpackMessage(config.clientId, data);
+        if (isEncrypted &&  isEncryptionReady()) {
+          const descryptedMessage = decryptFromServer(btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(data)))
+        ));
+        
+        if (descryptedMessage) {
+          const { event, data: messageData } = descryptedMessage;
+          console.log(`Received encrypted ${event} event:`, messageData);
   
           // Handle different event types
           switch(event) {
@@ -148,11 +221,15 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
             default:
               console.log(`Unhandled event type: ${event}`);
           }
+        } else {
+          console.warn('Failed to decrypt binary message')
         }
+      }
       } catch (error) {
         console.error('Error processing binary message:', error);
       }
     });
+    
   
     // Cleanup function
     return () => {
@@ -161,49 +238,8 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       socketInstance.off("connect_error");
       socketInstance.off("binary");
     };
-  }, [config.clientId]);
+  }, [config.clientId, handlePresenceSync, handlePresenceLeave, handlePresenceEnter]);
   
-  // Event handlers
-  const handlePresenceEnter = useCallback((data: PresenceUpdate) => {
-    if (data.clientId === config.clientId) return;
-    setState(prev => ({
-      ...prev,
-      presenceState: new Map(prev.presenceState).set(data.clientId, data)
-    }));
-  }, [config.clientId]);
-  
-  const handlePresenceUpdate = useCallback((data: PresenceUpdate) => {
-    setState(prev => ({
-      ...prev,
-      presenceState: new Map(prev.presenceState).set(data.clientId, data)
-    }));
-  }, []);
-  
-  const handlePresenceSync = useCallback((updates: PresenceUpdate[]) => {
-    setState(prev => {
-      const newPresenceState = new Map();
-      updates.forEach(update => {
-        newPresenceState.set(update.clientId, update);
-      });
-      return { ...prev, presenceState: newPresenceState };
-    });
-  }, []);
-  
-  const handlePresenceLeave = useCallback(({ clientId }: { clientId: string }) => {
-    setState(prev => {
-      const newPresenceState = new Map(prev.presenceState);
-      newPresenceState.delete(clientId);
-      return { ...prev, presenceState: newPresenceState };
-    });
-  }, []);
-  
-  const handleNotification = useCallback((notification: Notification) => {
-    setState(prev => ({
-      ...prev,
-      notifications: [...prev.notifications, notification]
-    }));
-  }, []);
-
 
   // Initialize connection on mount
   useEffect(() => {
