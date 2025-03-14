@@ -37,7 +37,6 @@ export default async function ChatLayout({
     <div className={`${inter.variable} font-sans antialiased`}>
     <SocketProvider config={socketConfig}>
       {children}
-      <Toaster position="top-center" />
     </SocketProvider>
     </div>
   );

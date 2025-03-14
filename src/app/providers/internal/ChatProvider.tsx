@@ -46,7 +46,7 @@ export function ChatProvider({
   onProfileUpdated
 }: ChatProviderProps) {
   //const { socket, isConnected, clientId } = useSocket()
-  const { socket, isConnected, clientId } = useWebSkt()
+  const { socket, isConnected, clientId, registerEventHandler} = useWebSkt()
   const [selectedUser, setSelectedUser] = useState<ClientMetaData | null>(null)
   const [localUserData, setLocalUserData] = useState<Record<string, ClientMetaData>>({})
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
@@ -102,11 +102,13 @@ export function ChatProvider({
     };
   
     socket.on('chat:message', handleMessage)
+    const unregisterHandler = registerEventHandler('chat:message', handleMessage);
   
     return () => {
-      socket.off('chat:message', handleMessage)
+      socket.off('chat:message', handleMessage);
+      unregisterHandler();
     }
-  }, [socket])
+  }, [socket, registerEventHandler])
 
   const subscribeToErrors = useCallback((
     callback: (error: ChatError) => void
@@ -165,13 +167,24 @@ export function ChatProvider({
   
     socket.on('chat:status', handleStatus);
     socket.on('chat:status', handleDeliveryConfirmation);
+
+    const unregisterHandler = registerEventHandler('chat:status', (data) => {
+      console.log('Received encrypted status update:', data);
+
+      handleStatus(data);
+
+      if (data.status === 'confirm_delivery') {
+        handleDeliveryConfirmation
+      }
+    })
   
     return () => {
       socket.emit('chat:unsubscribe_status');
       socket.off('chat:status', handleStatus);
       socket.off('chat:status', handleDeliveryConfirmation);
+      unregisterHandler();
     }
-  }, [socket]);
+  }, [socket, registerEventHandler]);
 
 
   const getRoomId = useCallback((userId: string): string => {

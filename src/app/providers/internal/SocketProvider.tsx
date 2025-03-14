@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { toast } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
 import { io, type Socket } from "socket.io-client"
 import { 
   SocketCtx, 
@@ -40,6 +41,7 @@ export const SocketProvider = ({ children, config }: SocketProviderProps) => {
     <SocketAuthProvider config={config}>
       <SocketConnectionManager config={config}>
         {children}
+        <Toaster position="top-center" />
       </SocketConnectionManager>
     </SocketAuthProvider>
   );

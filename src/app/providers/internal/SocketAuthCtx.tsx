@@ -24,6 +24,7 @@ export interface SocketAuthCtxState {
 export interface SocketAuthCtxActions {
     authenticate: () => {};
     exchangeKeys: (sessionId: string) => Promise<void>;
+    reAuthenticate: () => Promise<void>;
   }
 
 
@@ -35,7 +36,8 @@ const initialState: SocketAuthCtxValue = {
     connectionState: 'idle',
     keyExchangeError: null, 
     authenticate: async () => {},
-    exchangeKeys: async () => {}
+    exchangeKeys: async () => {},
+    reAuthenticate: async () => {}
 }
 
 export const SocketAuthCtx = createContext<SocketAuthCtxValue>(initialState)

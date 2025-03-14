@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
-import { generateKeyPair, setServerPublicKey, isEncryptionReady, decryptFromServer, encryptForServer } from "../utils/encryption"
+import { generateKeyPair, 
+  setServerPublicKey,
+   isEncryptionReady, 
+   decryptFromServer, encryptForServer 
+} from "../utils/encryption"
 import { encryptAndPackMessage, decryptAndUnpackMessage } from '../utils/binaryProtocol';
-import { getStoredSessionId, storeSessionId } from "@/app/providers/utils/socketSessionConfig"
+import { getStoredSessionId, storeSessionId, storeKeys, getStoredKeys, clearStoredSessionKeys } from "@/app/providers/utils/socketSessionConfig"
 import { SocketAuthCtx, type SocketAuthCtxState } from "./SocketAuthCtx"
 import type {  PresenceUpdate, Presence, SocketConfig } from "@/app/providers/utils/socket"
+import { toast } from "sonner"
 
 
 interface SocketAuthProviderProps {
@@ -40,10 +45,23 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
         })
       });
 
-      if (!authResponse.ok) throw new Error('Authentication failed');
+      if (!authResponse.ok) {
+        toast.error("Authentication Failed", {
+          description: "Failed to authenticate. Please check your credentials and try again.",
+          duration: 5000,
+        });
+        throw new Error('Authentication failed');
+      }
       
       const { sessionId, serverPublicKey } = await authResponse.json();
-      setServerPublicKey(serverPublicKey);
+
+      //setServerPublicKey(serverPublicKey, sessionId);
+
+      await storeKeys({
+        publicKey: '',
+        secretKey: '',
+        serverPublicKey
+      });
       
       setState(prev => ({ 
         ...prev, 
@@ -64,18 +82,29 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
 
   const exchangeKeys = async (sessionId: string) => {
     try {
-      const clientPublicKey = generateKeyPair();
+     const { publicKey, secretKey} = generateKeyPair();
       
       const keysResponse = await fetch('/api/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          clientPublicKey
+          clientPublicKey: publicKey
         })
       });
 
       if (!keysResponse.ok) throw new Error('Key exchange failed');
+
+      const storedKeys = getStoredKeys();
+      if (!storedKeys?.serverPublicKey) {
+        throw new Error('Server public key not found');
+      }
+
+      await storeKeys({
+        publicKey: publicKey, 
+        secretKey: secretKey,
+        serverPublicKey: storedKeys.serverPublicKey
+      });
       
       storeSessionId(sessionId, config);
       
@@ -88,6 +117,33 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
         ...prev,
         connectionState: 'error',
         keyExchangeError: 'Key exchange failed'
+      }));
+      throw error;
+    }
+  };
+
+  const reAuthenticate = async () => {
+    // Clear stored session and keys
+    await clearStoredSessionKeys()
+    
+    setState(prev => ({
+      ...prev,
+      sessionId: null,
+      connectionState: 'authenticating' // Show authenticating state
+    }));
+
+    try {
+      // Start new authentication flow
+      const result = await authenticate();
+      if (result?.sessionId) {
+        await exchangeKeys(result.sessionId);
+      }
+    } catch (error) {
+      console.error('Re-authentication failed:', error);
+      setState(prev => ({
+        ...prev,
+        connectionState: 'error',
+        authError: 'Re-authentication failed'
       }));
       throw error;
     }
@@ -108,7 +164,7 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
     const initAuth = async () => {
       try {
         // Check if we already have a valid session
-        const existingSessionId = await getStoredSessionId(config)
+        const existingSessionId = getStoredSessionId(config) //removed await
 
         if (existingSessionId) {
           setState((prev) => ({
@@ -126,6 +182,11 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
         }
       } catch (error) {
         console.error("Authentication process failed:", error)
+
+        toast.error("Authentication Failed", {
+          description: "Failed to authenticate.",
+          duration: 5000,
+        });
       }
     }
 
@@ -138,7 +199,13 @@ export const SocketAuthProvider = ({ children, config }: SocketAuthProviderProps
   }, [config])
 
   return (
-    <SocketAuthCtx.Provider value={{ ...state, authenticate, exchangeKeys }}>
+    <SocketAuthCtx.Provider value={{
+       ...state,
+       authenticate,
+       exchangeKeys,
+       reAuthenticate
+      }}
+      >
       {children}
     </SocketAuthCtx.Provider>
   );

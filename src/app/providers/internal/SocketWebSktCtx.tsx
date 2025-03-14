@@ -8,7 +8,7 @@ import type {
   Presence
  } from "@/app/providers/utils/socket"
 
-
+ export type EventHandler = (data: any) => void;
 
 export interface SocketWebSktCtxState {
   socket: Socket<any, ClientToServerEvents> | null
@@ -26,6 +26,7 @@ export interface SocketWebSktCtxActions {
   setPresence: (presence: Presence) => void
   disconnect: () => void
   clearNotifications: () => void
+  registerEventHandler: (eventName: string, handler: EventHandler) => () => void
 }
 
 export interface SocketWebSktCtxValue extends SocketWebSktCtxState, SocketWebSktCtxActions {}
@@ -43,7 +44,7 @@ const initialState: SocketWebSktCtxValue = {
   setPresence: () => {},
   disconnect: () => {},
   clearNotifications: () => {},
-
+  registerEventHandler: () => () => {}
 }
 
 export const SocketWebSktCtx = createContext<SocketWebSktCtxValue>(initialState)
