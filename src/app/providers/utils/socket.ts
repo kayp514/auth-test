@@ -112,7 +112,7 @@ export interface ConversationData {
 
 export interface ChatError {
     messageId?: string;
-    message: string;
+    error: string;
 }
 
 

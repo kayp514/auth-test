@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useRef} from 'react'
-import { useSocket } from './SocketCtx'
 import { useWebSkt } from './SocketWebSktCtx'
 import { ChatCtx } from './ChatCtx'
 import type { 
@@ -46,7 +45,7 @@ export function ChatProvider({
   onProfileUpdated
 }: ChatProviderProps) {
   //const { socket, isConnected, clientId } = useSocket()
-  const { socket, isConnected, clientId, registerEventHandler} = useWebSkt()
+  const { socket, isConnected, clientId, registerEventHandler, subscriptionManager} = useWebSkt()
   const [selectedUser, setSelectedUser] = useState<ClientMetaData | null>(null)
   const [localUserData, setLocalUserData] = useState<Record<string, ClientMetaData>>({})
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
@@ -65,9 +64,9 @@ export function ChatProvider({
   const subscribeToMessages = useCallback((
     callback: (message: ChatMessage) => void
   ) => {
-    if (!socket) return () => {};
+    if (!subscriptionManager) return () => {};
 
-    const handleMessage = (message: ChatMessage) => {
+    return subscriptionManager.subscribeToMessages((message: ChatMessage) => {
       
       // Update messages state
       setMessages(prev => {
@@ -99,18 +98,18 @@ export function ChatProvider({
       lastMessagesRef.current.set(recipientId, message);
 
       callback(message);
-    };
+    });
   
    // socket.on('chat:message', handleMessage)
-    const unregisterHandler = registerEventHandler('chat:message', handleMessage);
+    //const unregisterHandler = registerEventHandler('chat:message', handleMessage);
     //const unregister = (socket as any).registerEventHandler('chat:message', handleMessage);
-  
-    return () => {
+    //return subscriptionManager.subscribeToMessages(handleMessage);
+    //return () => {
       //socket.off('chat:message', handleMessage);
       //unregisterHandler();
-      unregisterHandler()
-    }
-  }, [socket])
+     // unregisterHandler()
+    //}
+  }, [subscriptionManager])
 
   const subscribeToErrors = useCallback((
     callback: (error: ChatError) => void
@@ -126,65 +125,33 @@ export function ChatProvider({
   
 
   const subscribeToMessageStatus = useCallback((
-    callback: (messageId: string, status: string) => void
+    callback: (messageId: string, status: MessageStatus) => void
   ) => {
-    if (!socket) return () => {};
-  
-    socket.emit('chat:subscribe_status');
-  
-    // Single handler for both status updates and delivery confirmations
-    const statusHandler = (data: { 
-      messageId: string, 
-      status: string,
-      fromId?: string
-    }, ack?: Function) => {
-      console.log('Received status update:', { data, hasAck: !!ack });
-  
-      if (data.status === 'confirm_delivery' && data.fromId) {
-        // Handle delivery confirmation with proper acknowledgment
-        console.log('Acknowledging delivery for message:', data.messageId, 'to sender:', data.fromId);
-        try {
-          socket.emit('chat:status', {
-            messageId: data.messageId,
-            status: 'delivered_confirmed',
-            fromId: data.fromId,
-          });
-          //ack({ received: true });
-        } catch (error) {
-          console.error('Error sending acknowledgment:', error);
-        }
-      } else {
-        // Handle regular status updates
-        let clientStatus: MessageStatus;
-        switch (data.status) {
-          case 'server_received':
-            //clientStatus = 'received';
-           // break;
-          case 'sent':
-            clientStatus = 'sent';
-            break;
-          case 'delivered':
-            clientStatus = 'delivered';
-            break;
-          case 'error':
-            clientStatus = 'error';
-            break;
-          default:
-            clientStatus = 'pending';
-        }
-        callback(data.messageId, clientStatus);
+    if (!subscriptionManager) return () => {};
+
+    return subscriptionManager.subscribeToMessageStatus((messageId: string, status: MessageStatus) => {
+      console.log(`Status update for message ${messageId}:`, status);
+
+      // Update internal state
+      setDeliveryStatus(prev => ({
+        ...prev,
+        [messageId]: status
+      }));
+
+      // Notify callback
+      callback(messageId, status);
+
+      // Handle optional callbacks
+      if (status === 'delivered') {
+        onMessageDelivered?.(messageId);
+      } else if (status === 'error') {
+        onMessageError?.({ 
+          messageId, 
+          error: 'Failed to deliver message' 
+        });
       }
-    };
-  
-    // Register single handler for both types of updates
-    const unregisterHandler = (socket as any).registerEventHandler('chat:status', statusHandler);
-  
-    return () => {
-      socket.emit('chat:unsubscribe_status');
-      unregisterHandler();
-    };
-  }, [socket]);
-  
+    });
+  }, [subscriptionManager, onMessageDelivered, onMessageError]);
   
 {/*  const subscribeToMessageStatus = useCallback((
     callback: (messageId: string, status: string) => void
@@ -268,9 +235,7 @@ export function ChatProvider({
     recipientId: string,
     recipientData?: ClientMetaData
   ): Promise<string> => {
-    if (!socket || !isConnected) {
-      throw new Error('Socket not connected')
-    }
+
 
     if (!recipientId) {
       throw new Error('Recipient ID is required');
@@ -283,7 +248,7 @@ export function ChatProvider({
     const metaData = clientMetaData || {
       uid: currentUserId,
       name: currentUserId.substring(0, 8),
-      email:  `${currentUserId}@example.com`,
+      email: `${currentUserId}@example.com`,
     };
 
     const toData = recipientData || {
@@ -292,31 +257,22 @@ export function ChatProvider({
       email: `${recipientId}@example.com`,
     }
 
-
+    const localMessageId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      return new Promise<string>((resolve, reject) => {
-        socket.emit('chat:private', {
+      socket?.emit('chat:private', {
         targetId: recipientId,
         message: content,
         metaData,
         toData
-      }, (response: { 
-        success: boolean; 
-        messageId?: string; 
-        error?: string
-      }
-      ) => {
-        if(response.success && response.messageId) {
-          resolve(response.messageId);
-        } else {
-          reject(new Error(response.error || 'Failed to send message'));
-        }
       });
-    });
+      
+      // Generate a local message ID since we're not waiting for server response
+      
+      return localMessageId;
+      
     } catch (error) {
       console.error('Error sending message:', error)
-
       throw error
     }
   }, [socket, isConnected, currentUserId, clientMetaData])
@@ -374,7 +330,8 @@ export function ChatProvider({
         }
        };
 
-       socket?.on('chat:conversations_response', responseHandler);
+       //socket?.on('chat:conversations_response', responseHandler);
+       const unregisterHandler = registerEventHandler('chat:conversations_response', responseHandler);
 
        socket?.emit('chat:conversations', {
         requestId,
@@ -438,7 +395,8 @@ export function ChatProvider({
           reject(new Error(response?.error || 'Failed to load messages'));
         }
       };
-      socket?.on('chat:messages_response', responseHandler);
+      //socket?.on('chat:messages_response', responseHandler);
+      const unregisterHandler = registerEventHandler('chat:messages_response', responseHandler);
 
       socket?.emit('chat:messages', {
         requestId,

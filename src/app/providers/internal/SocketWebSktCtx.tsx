@@ -7,6 +7,7 @@ import type {
   ClientToServerEvents, 
   Presence
  } from "@/app/providers/utils/socket"
+ import { SubscriptionManager } from "./subManager"
 
  export type EventHandler = (data: any) => void;
 
@@ -19,6 +20,8 @@ export interface SocketWebSktCtxState {
   presenceState: Map<string, PresenceUpdate> 
   clientId: string
   sessionId: string | null
+  subscriptionManager: SubscriptionManager | null
+
 }
 
 export interface SocketWebSktCtxActions {
@@ -40,6 +43,7 @@ const initialState: SocketWebSktCtxValue = {
   socketId: null,
   clientId: '',
   sessionId: null,
+  subscriptionManager: null,
   sendNotification: async () => {},
   setPresence: () => {},
   disconnect: () => {},

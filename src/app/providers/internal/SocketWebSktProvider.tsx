@@ -1,24 +1,25 @@
+//Commit 1395866 with callback
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react"
 import { toast } from "sonner"
 import { io, type Socket } from "socket.io-client"
 import { v4 as uuidv4 } from 'uuid'
 import { 
   SocketWebSktCtx,
   EventHandler, 
-  type SocketWebSktCtxState,
+  type SocketWebSktCtxState, SocketWebSktCtxValue
 } from "./SocketWebSktCtx"
 
 import { useSocketAuth } from "./SocketAuthCtx"
 
 import type {  PresenceUpdate, Presence, SocketConfig } from "@/app/providers/utils/socket"
+import { SubscriptionManager } from "./subManager"
 import { getStoredSessionId } from "@/app/providers/utils/socketSessionConfig"
 import { 
   isEncryptionReady, 
   decryptFromServer, encryptForServer
  } from "../utils/encryption"
-import { error } from "console"
 
 
 
@@ -27,7 +28,7 @@ const SOCKET_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_SOCKET_URL,
   room: 'notifications',
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 10000,
   reconnectionDelayMax: 5000,
   connectionTimeout: 60000,
@@ -89,13 +90,168 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     socketId: null,
     presenceState: new Map(),
     clientId: config.clientId,
-    sessionId: null
+    sessionId: null,
+    subscriptionManager: null
   })
   
   const connectionAttempted = useRef(false)
   const configRef = useRef(config)
+  const subscriptionManager = useRef<SubscriptionManager | null>(null);
+
+
+  const setupConnectionHandlers = (
+    socketInstance: Socket,
+    reAuth: () => Promise<void>
+  ) => {
+    let reconnectAttempts = 0;
+    // Initial Connection
+    socketInstance.on("connect", async () => {
+      console.log("Socket connected with ID:", socketInstance.id);
+  
+      if (socketInstance.recovered && subscriptionManager.current) {
+        console.log("Socket connection recovered with previous state");
+
+        subscriptionManager.current.handleRecovery();
+        setState(prev => ({
+          ...prev,
+          isConnected: true,
+          connectionError: null,
+          socketId: socketInstance.id ?? null
+        }));
+        
+        toast.success("Connection Recovered", {
+          description: "Connection restored with all missed events synchronized.",
+          duration: 3000,
+        });
+      } else {
+        toast.success("Connected", {
+          description: "Socket connection established successfully.",
+          duration: 3000,
+        });
+      }
+    });
+  
+    socketInstance.io.on("reconnect_attempt", (attempt) => {
+      reconnectAttempts = attempt;
+      console.log(`Reconnection attempt ${attempt}`);
+      
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        connectionError: `Reconnecting (attempt ${attempt})...`
+      }));
+  
+      // Show toast every 3rd attempt or first attempt
+      if (attempt === 1 || attempt % 3 === 0) {
+        toast.info("Reconnecting...", {
+          description: `Attempt ${attempt} to restore connection.`,
+          duration: 3000,
+        });
+      }
+    });
+  
+    // Reconnection Success
+    socketInstance.io.on("reconnect", (attempt) => {
+      console.log(`Reconnected after ${attempt} attempts`);
+      reconnectAttempts = 0;
+  
+      setState(prev => ({
+        ...prev,
+        isConnected: true,
+        connectionError: null
+      }));
+  
+      // Only show toast if there were multiple attempts
+      if (attempt > 1) {
+        toast.success("Reconnected", {
+          description: `Connection restored after ${attempt} attempts.`,
+          duration: 3000,
+        });
+      }
+    });
+  
+    // Reconnection Failure
+    socketInstance.io.on("reconnect_failed", () => {
+      const message = `Connection failed after ${reconnectAttempts} attempts`;
+      console.error(message);
+  
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        connectionError: message
+      }));
+  
+      toast.error("Connection Lost", {
+        description: "Unable to connect. Check your connection or try refreshing.",
+        duration: 0, // Persist until dismissed
+        action: {
+          label: "Retry",
+          onClick: () => {
+            socketInstance.connect();
+          }
+        }
+      });
+    });
+  
+    // Disconnect
+    socketInstance.on("disconnect", (reason: string) => {
+      console.log("Socket disconnected:", reason);
+      
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        socketId: null
+      }));
+  
+      // Only show toast for unexpected disconnections
+      if (reason !== 'io client disconnect') {
+        toast.warning("Disconnected", {
+          description: "Connection lost. Attempting to reconnect...",
+          duration: 3000,
+        });
+      }
+    });
+  
+    // Connection Errors
+    socketInstance.on("connect_error", (error: Error) => {
+      console.error("Socket connection error:", error);
+  
+      // Handle session-related errors
+      if (error.message.includes('Invalid session ID')) {
+        reAuth();
+        toast.error("Session Expired", {
+          description: "Reconnecting with new session...",
+          duration: 5000,
+        });
+      } else {
+        toast.error("Connection Error", {
+          description: error.message,
+          duration: 5000,
+        });
+      }
+  
+      setState(prev => ({
+        ...prev,
+        connectionError: error.message,
+        isConnected: false,
+        socketId: null
+      }));
+    });
+  
+    // Helper function to resubscribe to events after recovery
+    return () => {
+      socketInstance.off("connect");
+      socketInstance.off("disconnect");
+      socketInstance.off("connect_error");
+      socketInstance.io.off("reconnect_attempt");
+      socketInstance.io.off("reconnect");
+      socketInstance.io.off("reconnect_failed");
+    };
+  };
+
 
   const registerEventHandler = useCallback((eventName: string, handler: EventHandler) => {
+
     if (!eventHandlersRef.current[eventName]) {
       eventHandlersRef.current[eventName] = [];
     }
@@ -126,6 +282,7 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     }
     return false; // No handlers found
   }, []);
+
 
     // Event handlers
     const handlePresenceEnter = useCallback((data: PresenceUpdate) => {
@@ -363,8 +520,9 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
 
   const setupSocketHandlers = useCallback((
     socketInstance: Socket,
-    reAuth: () => Promise<void>
+    //reAuth: () => Promise<void>
   ) => {
+    const connectionCleanup = setupConnectionHandlers(socketInstance, reAuthenticate);
     const originalEmit = socketInstance.emit;
     
     // Override emit to handle encryption
@@ -381,16 +539,11 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       
       if (isEncryptionReady()) {
         try {
-          console.log('Emit payload structure:', {
-            event,
-            payload,
-            hasCallback
-          });
-          
+
           const messageData = { 
             event, 
             data: payload
-          };
+          }; 
 
           const messageString = JSON.stringify(messageData);
           console.log('Preparing encrypted message for event:', event);
@@ -401,19 +554,9 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
             const bytes = new Uint8Array(
               atob(encryptedBase64).split('').map(c => c.charCodeAt(0))
             );
-
-            // Emit directly to the original event with encrypted buffer
-            if (hasCallback && callback) {
-              ///originalEmit.call(this, event, bytes.buffer, (response: any) => {
-                originalEmit.call(this, 'binary', { buffer: bytes.buffer, event }, (response: any) => {
-                console.log(`Received acknowledgment for ${event}:`, response);
-                callback(response);
-              });
-            } else {
-              //originalEmit.call(this, event, bytes.buffer);
-              originalEmit.call(this, 'binary', { buffer: bytes.buffer, event });
-            }
-            return this;
+            
+          originalEmit.call(this, 'binary', bytes.buffer, true);
+          return this;
           }
         } catch (error) {
           console.error('Encryption error:', error);
@@ -421,11 +564,7 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       }
 
       // Fallback to unencrypted
-      if (hasCallback && callback) {
-        originalEmit.call(this, event, payload, callback);
-      } else {
-        originalEmit.call(this, event, payload);
-      }
+      originalEmit.call(this, event, payload);
       return this;
     };
 
@@ -541,58 +680,8 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     };
     
 
-    // Basic connection handlers
-    socketInstance.on("connect", () => {
-      console.log("Socket connected with ID:", socketInstance.id);
 
-      if (socketInstance.recovered) {
-        console.log("Socket connection recovered with previous state");
-        toast.success("Connection Recovered", {
-          description: "Connection restored with all missed events synchronized.",
-          duration: 3000,
-        });
-      } else if (!state.isConnected) {
-        toast.success("Connected", {
-          description: "Socket connection established successfully.",
-          duration: 3000,
-        });
-      }
 
-      setState(prev => ({
-        ...prev,
-        isConnected: true,
-        connectionError: null,
-        socketId: socketInstance.id ?? null
-      }));
-    });
-
-    socketInstance.on("disconnect", (reason: string) => {
-      console.log("Socket disconnected:", reason);
-      setState(prev => ({
-        ...prev,
-        isConnected: false,
-        socketId: null
-      }));
-    });
-
-    socketInstance.on("connect_error", (error: Error) => {
-      console.error("Socket connection error:", error);
-      if (error.message.includes('Invalid session ID')) {
-        reAuth();
-      }
-
-      toast.error("Connection error", {
-        description: "Failed to initialize socket connection. Please try again later.",
-        duration: 5000,
-      });
-
-      setState(prev => ({
-        ...prev,
-        connectionError: error.message,
-        isConnected: false,
-        socketId: null
-      }));
-    });
 
     socketInstance.on('binary', (data: ArrayBuffer, isEncrypted: boolean) => {
       try {
@@ -628,21 +717,9 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
                 default:
                   console.log(`Unhandled event type: ${event}`);
               }
-            } else {
-              console.warn('Failed to decrypt binary message')
             }
-  
-            // Fall back to registry for custom events
-{/*            const handlers = eventHandlersRegistry.get(event);
-            if (handlers) {
-              handlers.forEach(handler => {
-                try {
-                  handler(messageData);
-                } catch (handlerError) {
-                  console.error(`Error in binary handler for ${event}:`, handlerError);
-                }
-              });
-            } */}
+          } else {
+            console.warn('Failed to decrypt binary message')
           }
         }
       } catch (error) {
@@ -672,9 +749,7 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
 
       // Remove all event listeners
       socketInstance.off("binary");
-      socketInstance.off("connect");
-      socketInstance.off("disconnect");
-      socketInstance.off("connect_error");
+      connectionCleanup();
       
       // Remove all custom event handlers
       Object.keys(eventHandlers).forEach(event => {
@@ -699,9 +774,9 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     handleNotification,
     isEncryptionReady,
     triggerEventHandlers,
+    [setupConnectionHandlers],
     state.isConnected
   ]);
-  
   
 
   // Initialize connection on mount
@@ -730,7 +805,7 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       sessionId
     });
 
-    setupSocketHandlers(socketInstance, reAuthenticate);
+    setupSocketHandlers(socketInstance);
 
     setState(prev => ({ 
       ...prev, 
@@ -800,18 +875,38 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     setState(prev => ({ ...prev, notifications: [] }))
   }, [])
 
+  useEffect(() => {
+    if (state.socket) {
+      subscriptionManager.current = new SubscriptionManager(
+        state.socket,
+        registerEventHandler
+      );
+    }
+  }, [state.socket, registerEventHandler]);
+
+
+  const contextValue = useMemo<SocketWebSktCtxValue>(() => ({
+    ...state,
+    sendNotification,
+    setPresence,
+    disconnect,
+    clearNotifications,
+    subscriptionManager: subscriptionManager.current,
+    registerEventHandler
+  }), [
+    state,
+    sendNotification,
+    setPresence,
+    disconnect,
+    clearNotifications,
+    registerEventHandler
+  ]);
+
 
 
   return (
     <SocketWebSktCtx.Provider
-      value={{
-        ...state,
-        sendNotification,
-        disconnect,
-        clearNotifications,
-        setPresence,
-        registerEventHandler,
-      }}
+      value={contextValue}
     >
       {children}
     </SocketWebSktCtx.Provider>

@@ -1,15 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
-import { toast } from "sonner"
+import { type ReactNode } from "react"
 import { Toaster } from "@/components/ui/sonner"
-import { io, type Socket } from "socket.io-client"
-import { 
-  SocketCtx, 
-  type SocketCtxState,
-} from "./SocketCtx"
-
-import type {  PresenceUpdate, Presence, SocketConfig } from "@/app/providers/utils/socket"
+import type { SocketConfig } from "@/app/providers/utils/socket"
 import { SocketAuthProvider } from "./SocketAuthProvider"
 import { SocketWebSktProvider } from "./SocketWebSktProvider"
 import { useSocketAuth } from "./SocketAuthCtx"
