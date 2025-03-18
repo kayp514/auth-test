@@ -59,11 +59,11 @@ export interface StatusUpdate {
     'chat:profile_update': (data: ClientAdditionalData) => void;
     //'chat:confirm_receipt': (data: { messageId: string }, callback?: (response: { received: boolean }) => void) => void;
 
-    'chat:status': (data: { messageId: string; status: string }, callback?: (response: { received: boolean }) => void) => void;
+    'chat:status': (data: { messageId: string; status: string; fromId?: string}, callback?: (response: { received: boolean }) => void) => void;
     'chat:subscribe_status': () => void;
     'chat:unsubscribe_status': () => void;
-    'chat:messages': (options: { roomId: string; limit?: number; before?: string; after?: string }, callback?: (response: { success: boolean; messages?: ChatMessage[]; error?: string }) => void) => void;
-    'chat:conversations': (options: { limit?: number; offset?: number }, callback?: (response: { success: boolean; conversations?: any[]; hasMore?: boolean; error?: string }) => void) => void;
+    'chat:messages': (options: { requestId: string; roomId: string; limit?: number; before?: string; after?: string }, callback?: (response: { success: boolean; messages?: ChatMessage[]; error?: string }) => void) => void;
+    'chat:conversations': (options: { requestId: string; limit?: number; offset?: number }, callback?: (response: { success: boolean; conversations?: any[]; hasMore?: boolean; error?: string }) => void) => void;
 
     'presence:update': (presence: Presence) => void;
 

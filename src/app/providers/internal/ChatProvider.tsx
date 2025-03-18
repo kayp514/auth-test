@@ -101,14 +101,16 @@ export function ChatProvider({
       callback(message);
     };
   
-    socket.on('chat:message', handleMessage)
+   // socket.on('chat:message', handleMessage)
     const unregisterHandler = registerEventHandler('chat:message', handleMessage);
+    //const unregister = (socket as any).registerEventHandler('chat:message', handleMessage);
   
     return () => {
-      socket.off('chat:message', handleMessage);
-      unregisterHandler();
+      //socket.off('chat:message', handleMessage);
+      //unregisterHandler();
+      unregisterHandler()
     }
-  }, [socket, registerEventHandler])
+  }, [socket])
 
   const subscribeToErrors = useCallback((
     callback: (error: ChatError) => void
@@ -122,8 +124,69 @@ export function ChatProvider({
     }
   }, [socket])
   
-  
+
   const subscribeToMessageStatus = useCallback((
+    callback: (messageId: string, status: string) => void
+  ) => {
+    if (!socket) return () => {};
+  
+    socket.emit('chat:subscribe_status');
+  
+    // Single handler for both status updates and delivery confirmations
+    const statusHandler = (data: { 
+      messageId: string, 
+      status: string,
+      fromId?: string
+    }, ack?: Function) => {
+      console.log('Received status update:', { data, hasAck: !!ack });
+  
+      if (data.status === 'confirm_delivery' && data.fromId) {
+        // Handle delivery confirmation with proper acknowledgment
+        console.log('Acknowledging delivery for message:', data.messageId, 'to sender:', data.fromId);
+        try {
+          socket.emit('chat:status', {
+            messageId: data.messageId,
+            status: 'delivered_confirmed',
+            fromId: data.fromId,
+          });
+          //ack({ received: true });
+        } catch (error) {
+          console.error('Error sending acknowledgment:', error);
+        }
+      } else {
+        // Handle regular status updates
+        let clientStatus: MessageStatus;
+        switch (data.status) {
+          case 'server_received':
+            //clientStatus = 'received';
+           // break;
+          case 'sent':
+            clientStatus = 'sent';
+            break;
+          case 'delivered':
+            clientStatus = 'delivered';
+            break;
+          case 'error':
+            clientStatus = 'error';
+            break;
+          default:
+            clientStatus = 'pending';
+        }
+        callback(data.messageId, clientStatus);
+      }
+    };
+  
+    // Register single handler for both types of updates
+    const unregisterHandler = (socket as any).registerEventHandler('chat:status', statusHandler);
+  
+    return () => {
+      socket.emit('chat:unsubscribe_status');
+      unregisterHandler();
+    };
+  }, [socket]);
+  
+  
+{/*  const subscribeToMessageStatus = useCallback((
     callback: (messageId: string, status: string) => void
   ) => {
     if (!socket) return () => {}
@@ -133,7 +196,8 @@ export function ChatProvider({
     const handleStatus = (data: { messageId: string, status: string }) => {
       console.log('Received status update:', data);
   
-      let clientStatus: MessageStatus;
+      if (data.status !== 'confirm_delivery') {
+        let clientStatus: MessageStatus;
   
       switch (data.status) {
         case 'sent':
@@ -151,40 +215,47 @@ export function ChatProvider({
           
       callback(data.messageId, clientStatus);
     }
+  };
 
-    const handleDeliveryConfirmation = (
+    const statusHandler = (
       data: { messageId: string, status: string },
-      ack: (response: { received: boolean }) => void
-    ) => {
+      ack?: Function) => {
       console.log('Received delivery confirmation request:', data);
       
-      if (data.status === 'confirm_delivery') {
+      if (data.status === 'confirm_delivery' && typeof ack === 'function') {
         // Immediately acknowledge receipt
-        ack({ received: true });
         console.log('Acknowledged delivery for message:', data.messageId);
+        try {
+          ack({ received: true });
+        } catch (error) {
+          console.error('Error acknowledging delivery:', error);
+        }
+      } else {
+        handleStatus(data);
       }
     };
   
-    socket.on('chat:status', handleStatus);
-    socket.on('chat:status', handleDeliveryConfirmation);
+    //socket.on('chat:status', handleStatus);
+    //socket.on('chat:status', handleDeliveryConfirmation);
 
-    const unregisterHandler = registerEventHandler('chat:status', (data) => {
-      console.log('Received encrypted status update:', data);
+    //const unregisterHandler = registerEventHandler('chat:status', (data) => {
+      //console.log('Received encrypted status update:', data);
 
-      handleStatus(data);
+      //handleStatus(data);
 
-      if (data.status === 'confirm_delivery') {
-        handleDeliveryConfirmation
-      }
-    })
+      //if (data.status === 'confirm_delivery') {
+       // handleDeliveryConfirmation
+     // }
+    //})
+
+    const unregisterHandler = (socket as any).registerEventHandler('chat:status', statusHandler);
+
   
     return () => {
       socket.emit('chat:unsubscribe_status');
-      socket.off('chat:status', handleStatus);
-      socket.off('chat:status', handleDeliveryConfirmation);
       unregisterHandler();
     }
-  }, [socket, registerEventHandler]);
+  }, [socket]); */}
 
 
   const getRoomId = useCallback((userId: string): string => {
@@ -199,6 +270,14 @@ export function ChatProvider({
   ): Promise<string> => {
     if (!socket || !isConnected) {
       throw new Error('Socket not connected')
+    }
+
+    if (!recipientId) {
+      throw new Error('Recipient ID is required');
+    }
+  
+    if (!currentUserId) {
+      throw new Error('Current user ID is not set');
     }
 
     const metaData = clientMetaData || {
@@ -264,19 +343,21 @@ export function ChatProvider({
 
     try {
       return new Promise<{conversations: ConversationData[], hasMore: boolean}>((resolve, reject) => {
-       socket?.emit('chat:conversations', {
-        limit: options?.limit || 50,
-        offset: options?.offset || 0
-       }, (response: {
+        const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const responseHandler = (response: {
+        requestId: string;
         success: boolean;
         conversations?: any[];
         hasMore?: boolean;
         error?: string;
        }) => {
+        if (response.requestId !== requestId) return;
+
+        socket?.off('chat:conversations_response', responseHandler);
         setLoadingConversations(false)
 
-        if(response && response.success) {
-
+        if(response.success && response.conversations) {
           const conversations = response.conversations || [];
             conversations.forEach(conv => {
               if (conv.lastMessage) {
@@ -291,8 +372,16 @@ export function ChatProvider({
         } else {
           reject(new Error((response && response.error) || 'Failed to load conversations'))
         }
-       })
-      })
+       };
+
+       socket?.on('chat:conversations_response', responseHandler);
+
+       socket?.emit('chat:conversations', {
+        requestId,
+        limit: options?.limit || 50,
+        offset: options?.offset || 0,
+       });
+      });
     } catch (error) {
       setLoadingConversations(false)
       console.error('Error laoding conversations:', error)
@@ -314,17 +403,17 @@ export function ChatProvider({
   ): Promise<ChatMessage[]> => {
 
     return new Promise<ChatMessage[]>((resolve, reject) => {
-      socket?.emit('chat:messages', {
-        roomId,
-        limit: options?.limit || 50,
-        before: options?.before,
-        after: options?.after
-      }, (response: {
+      const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const responseHandler = (response: {
+        requestId: string;
         success: boolean;
         messages?: ChatMessage[];
         error?: string;
       }) => {
-        if (response && response.success) {
+        if (response.requestId !== requestId) return;
+        socket?.off('chat:messages_response', responseHandler);
+
+        if (response.success && response.messages) {
           const messages = response.messages || [];
 
           if(!messagesRef.current[roomId]) {
@@ -348,6 +437,15 @@ export function ChatProvider({
         } else {
           reject(new Error(response?.error || 'Failed to load messages'));
         }
+      };
+      socket?.on('chat:messages_response', responseHandler);
+
+      socket?.emit('chat:messages', {
+        requestId,
+        roomId,
+        limit: options?.limit || 50,
+        before: options?.before,
+        after: options?.after,
       });
     });
   }, [socket]);

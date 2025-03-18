@@ -18,6 +18,7 @@ import {
   isEncryptionReady, 
   decryptFromServer, encryptForServer
  } from "../utils/encryption"
+import { error } from "console"
 
 
 
@@ -143,6 +144,10 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     }, []);
     
     const handlePresenceSync = useCallback((updates: PresenceUpdate[]) => {
+      if (!Array.isArray(updates)) {
+        console.error('Invalid presence sync data:', updates);
+        return;
+      }
       setState(prev => {
         const newPresenceState = new Map();
         updates.forEach(update => {
@@ -182,7 +187,7 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     }, [state.socket, state.isConnected, config.clientId]);
 
 
-  const setupSocketHandlers = useCallback((
+{/*  const setupSocketHandlers = useCallback((
     socketInstance: Socket,
     reAuth: () => Promise<void>
   ) => {
@@ -354,7 +359,349 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       socketInstance.off("connect_error");
       socketInstance.off("binary");
     };
-  }, [config.clientId, handlePresenceSync, handlePresenceLeave, handlePresenceEnter, isEncryptionReady, triggerEventHandlers]);
+  }, [config.clientId, handlePresenceSync, handlePresenceLeave, handlePresenceEnter, isEncryptionReady, triggerEventHandlers]); */}
+
+  const setupSocketHandlers = useCallback((
+    socketInstance: Socket,
+    reAuth: () => Promise<void>
+  ) => {
+    const originalEmit = socketInstance.emit;
+    
+    // Override emit to handle encryption
+    socketInstance.emit = function(event: string, ...args: any[]): Socket {
+      const lastArg = args[args.length - 1];
+      const hasCallback = typeof lastArg === 'function';
+      
+      let callback: Function | undefined;
+      if (hasCallback) {
+        callback = args.pop() as Function;
+      }
+
+      const payload = args[0];
+      
+      if (isEncryptionReady()) {
+        try {
+          console.log('Emit payload structure:', {
+            event,
+            payload,
+            hasCallback
+          });
+          
+          const messageData = { 
+            event, 
+            data: payload
+          };
+
+          const messageString = JSON.stringify(messageData);
+          console.log('Preparing encrypted message for event:', event);
+          
+          const encryptedBase64 = encryptForServer(messageString);
+          if (encryptedBase64) {
+            console.log('Message encrypted successfully');
+            const bytes = new Uint8Array(
+              atob(encryptedBase64).split('').map(c => c.charCodeAt(0))
+            );
+
+            // Emit directly to the original event with encrypted buffer
+            if (hasCallback && callback) {
+              ///originalEmit.call(this, event, bytes.buffer, (response: any) => {
+                originalEmit.call(this, 'binary', { buffer: bytes.buffer, event }, (response: any) => {
+                console.log(`Received acknowledgment for ${event}:`, response);
+                callback(response);
+              });
+            } else {
+              //originalEmit.call(this, event, bytes.buffer);
+              originalEmit.call(this, 'binary', { buffer: bytes.buffer, event });
+            }
+            return this;
+          }
+        } catch (error) {
+          console.error('Encryption error:', error);
+        }
+      }
+
+      // Fallback to unencrypted
+      if (hasCallback && callback) {
+        originalEmit.call(this, event, payload, callback);
+      } else {
+        originalEmit.call(this, event, payload);
+      }
+      return this;
+    };
+
+    // Override on to handle decryption
+    const originalOn = socketInstance.on;
+    const handlers = new Map<string, Function[]>();
+
+{/*    socketInstance.on = function(event: string, handler: Function): Socket {
+      const wrappedHandler = (data: any, ack?: Function) => {
+        try {
+          if (data instanceof ArrayBuffer || data instanceof Buffer) {
+            if (isEncryptionReady()) {
+              const uint8Array = new Uint8Array(data);
+              const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+              const decrypted = decryptFromServer(base64);
+
+              if (decrypted) {
+                console.log(`Received encrypted data for ${event}:`, decrypted);
+                handler(decrypted.data, ack);
+                return;
+              }
+            }
+          }
+          // Handle regular or failed decryption cases
+          handler(data, ack);
+        } catch (error) {
+          console.error(`Error handling event ${event}:`, error);
+          if (typeof ack === 'function') {
+            ack({ error: 'Failed to process message' });
+          }
+        }
+      };
+
+      // Store handler mapping for cleanup
+      if (!handlers.has(event)) {
+        handlers.set(event, []);
+      }
+      handlers.get(event)?.push(handler);
+
+      return originalOn.call(this, event, wrappedHandler);
+    }; */}
+
+      // Add binary message handler
+
+
+    // Create a registry for dynamic event handlers
+    const eventHandlersRegistry = new Map<string, Set<Function>>();
+
+    // Add registerEventHandler to the socket instance
+    (socketInstance as any).registerEventHandler = (event: string, handler: Function) => {
+      if (!eventHandlersRegistry.has(event)) {
+        eventHandlersRegistry.set(event, new Set());
+        
+        // Create the wrapped handler for this event type
+        const wrappedEventHandler = (data: any, ack?: Function) => {
+          try {
+            if (data instanceof ArrayBuffer || data instanceof Buffer) {
+              if (isEncryptionReady()) {
+                const uint8Array = new Uint8Array(data);
+                const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+                const decrypted = decryptFromServer(base64);
+
+                if (decrypted) {
+                  console.log(`Received encrypted data for ${event}:`, decrypted);
+                  // Ensure we're passing the correct data structure
+                  const messageData = decrypted.data || decrypted;
+                  // Call all handlers registered for this event
+                  eventHandlersRegistry.get(event)?.forEach(h => {
+                    try {
+                      h(messageData, ack);
+                    } catch (handlerError) {
+                      console.error(`Error in handler for ${event}:`, handlerError);
+                    }
+                  });
+                  return;
+                }
+              }
+            }
+            // Handle regular or failed decryption cases
+            eventHandlersRegistry.get(event)?.forEach(h => {
+              try {
+                h(data, ack);
+              } catch (handlerError) {
+                console.error(`Error in handler for ${event}:`, handlerError);
+              }
+            });
+          } catch (error) {
+            console.error(`Error handling event ${event}:`, error);
+            if (typeof ack === 'function') {
+              ack({ error: 'Failed to process message' });
+            }
+          }
+        };
+
+        // Register the wrapped handler with Socket.IO
+        socketInstance.on(event, wrappedEventHandler);
+      }
+
+      // Add the handler to the registry
+      eventHandlersRegistry.get(event)?.add(handler);
+
+      // Return unregister function
+      return () => {
+        const handlers = eventHandlersRegistry.get(event);
+        if (handlers) {
+          handlers.delete(handler);
+          if (handlers.size === 0) {
+            socketInstance.off(event);
+            eventHandlersRegistry.delete(event);
+          }
+        }
+      };
+    };
+    
+
+    // Basic connection handlers
+    socketInstance.on("connect", () => {
+      console.log("Socket connected with ID:", socketInstance.id);
+
+      if (socketInstance.recovered) {
+        console.log("Socket connection recovered with previous state");
+        toast.success("Connection Recovered", {
+          description: "Connection restored with all missed events synchronized.",
+          duration: 3000,
+        });
+      } else if (!state.isConnected) {
+        toast.success("Connected", {
+          description: "Socket connection established successfully.",
+          duration: 3000,
+        });
+      }
+
+      setState(prev => ({
+        ...prev,
+        isConnected: true,
+        connectionError: null,
+        socketId: socketInstance.id ?? null
+      }));
+    });
+
+    socketInstance.on("disconnect", (reason: string) => {
+      console.log("Socket disconnected:", reason);
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        socketId: null
+      }));
+    });
+
+    socketInstance.on("connect_error", (error: Error) => {
+      console.error("Socket connection error:", error);
+      if (error.message.includes('Invalid session ID')) {
+        reAuth();
+      }
+
+      toast.error("Connection error", {
+        description: "Failed to initialize socket connection. Please try again later.",
+        duration: 5000,
+      });
+
+      setState(prev => ({
+        ...prev,
+        connectionError: error.message,
+        isConnected: false,
+        socketId: null
+      }));
+    });
+
+    socketInstance.on('binary', (data: ArrayBuffer, isEncrypted: boolean) => {
+      try {
+        if (isEncrypted && isEncryptionReady()) {
+          const uint8Array = new Uint8Array(data);
+          const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+          const decrypted = decryptFromServer(base64);
+  
+          if (decrypted) {
+            const { event, data: messageData } = decrypted;
+            console.log(`Received binary encrypted data for event ${event}:`, messageData);
+  
+            const handled = triggerEventHandlers(event, messageData);
+  
+            // Check built-in handlers first
+            if (!handled) {
+              switch(event) {
+                case 'presence:enter':
+                  handlePresenceEnter(messageData);
+                  break;
+                case 'presence:update':
+                  handlePresenceUpdate(messageData);
+                  break;
+                case 'presence:sync':
+                  handlePresenceSync(messageData);
+                  break;
+                case 'presence:leave':
+                  handlePresenceLeave(messageData);
+                  break;
+                case 'notification':
+                  handleNotification(messageData);
+                  break;
+                default:
+                  console.log(`Unhandled event type: ${event}`);
+              }
+            } else {
+              console.warn('Failed to decrypt binary message')
+            }
+  
+            // Fall back to registry for custom events
+{/*            const handlers = eventHandlersRegistry.get(event);
+            if (handlers) {
+              handlers.forEach(handler => {
+                try {
+                  handler(messageData);
+                } catch (handlerError) {
+                  console.error(`Error in binary handler for ${event}:`, handlerError);
+                }
+              });
+            } */}
+          }
+        }
+      } catch (error) {
+        console.error('Error processing binary message:', error);
+      }
+    });
+
+    // Handle presence and notification events
+    const eventHandlers = {
+      'presence:enter': handlePresenceEnter,
+      'presence:update': handlePresenceUpdate,
+      'presence:sync': handlePresenceSync,
+      'presence:leave': handlePresenceLeave,
+    };
+
+    // Register all event handlers
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      socketInstance.on(event, handler);
+    });
+
+    // Update cleanup function
+    return () => {
+      // Restore original methods
+      //socketInstance.emit = originalEmit;
+      //socketInstance.on = originalOn;
+      //delete (socketInstance as any).registerEventHandler;
+
+      // Remove all event listeners
+      socketInstance.off("binary");
+      socketInstance.off("connect");
+      socketInstance.off("disconnect");
+      socketInstance.off("connect_error");
+      
+      // Remove all custom event handlers
+      Object.keys(eventHandlers).forEach(event => {
+        socketInstance.off(event);
+      });
+
+      // Clear all registered event handlers
+      eventHandlersRegistry.forEach((_, event) => {
+        socketInstance.off(event);
+      });
+      eventHandlersRegistry.clear();
+
+      // Clear handler mappings
+      handlers.clear();
+    };
+  }, [
+    config.clientId,
+    handlePresenceEnter,
+    handlePresenceUpdate,
+    handlePresenceSync,
+    handlePresenceLeave,
+    handleNotification,
+    isEncryptionReady,
+    triggerEventHandlers,
+    state.isConnected
+  ]);
+  
   
 
   // Initialize connection on mount
