@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { adminTernSecureAuth as adminAuth } from '../utils/admin-init';
+import { handleFirebaseAuthError, type AuthErrorResponse } from '../utils/errors';
 
 interface FirebaseAuthError extends Error {
   code?: string;
@@ -18,10 +19,10 @@ export interface Session {
     error: Error | null;
 }
 
-export interface UserStatus {
-  isValid: boolean
-  error?: string
-  userId?: string
+interface TernVerificationResult extends User {
+  valid: boolean
+  authTime?: number
+  error?: AuthErrorResponse
 }
 
 export async function createSessionCookie(idToken: string) {
@@ -37,7 +38,7 @@ export async function createSessionCookie(idToken: string) {
           path: '/',
       });
       return { success: true, message: 'Session created' };
-  } catch {
+  } catch (error) {
       return { success: false, message: 'Failed to create session' };
   }
 }
@@ -101,60 +102,47 @@ export async function setServerSession(token: string) {
   }
 }
 
-  export async function verifyTernIdToken(token: string): Promise<{ valid: boolean; uid?: string; error?: string }> {
+  export async function verifyTernIdToken(token: string): Promise<TernVerificationResult> {
     try {
       const decodedToken = await adminAuth.verifyIdToken(token);
-      return { valid: true, uid: decodedToken.uid };
+      return {
+        valid: true,
+        uid: decodedToken.uid,
+        email: decodedToken.email || null,
+        authTime: decodedToken.auth_time
+      };
     } catch (error) {
-      if (error instanceof Error) {
-        const firebaseError = error as FirebaseAuthError;
-        if (error.name === 'FirebaseAuthError') {
-          // Handle specific Firebase Auth errors
-          switch (firebaseError.code) {
-            case 'auth/id-token-expired':
-              return { valid: false, error: 'Token has expired' };
-            case 'auth/id-token-revoked':
-              return { valid: false, error: 'Token has been revoked' };
-            case 'auth/user-disabled':
-              return { valid: false, error: 'User account has been disabled' };
-            default:
-              return { valid: false, error: 'Invalid token' };
-          }
-        }
-      }
-      return { valid: false, error: 'Error verifying token' };
+      const errorResponse = handleFirebaseAuthError(error)
+      return {
+        valid: false,
+        uid: null,
+        email: null,
+        error: errorResponse
+      };
     }
   }
   
 
-  export async function verifyTernSessionCookie(session: string): Promise<{ valid: boolean; uid?: string; error?: string }>{
+  export async function verifyTernSessionCookie(session: string): Promise<TernVerificationResult>{
     try {
       const res = await adminAuth.verifySessionCookie(session);
-      if (res) {
-        return { valid: true, uid: res.uid };
-      } else {
-        return { valid: false, error: 'Invalid session'};
-      }
+      return { 
+          valid: true, 
+          uid: res.uid,
+          email: res.email || null,
+          authTime: res.auth_time
+        };
     } catch (error) {
-      if (error instanceof Error) {
-        const firebaseError = error as FirebaseAuthError;
-        if (error.name === 'FirebaseAuthError') {
-          // Handle specific Firebase Auth errors
-          switch (firebaseError.code) {
-            case 'auth/id-token-expired':
-              return { valid: false, error: 'Token has expired' };
-            case 'auth/id-token-revoked':
-              return { valid: false, error: 'Token has been revoked' };
-            case 'auth/user-disabled':
-              return { valid: false, error: 'User account has been disabled' };
-            default:
-              return { valid: false, error: 'Invalid token' };
-          }
-        }
-      }
-      return {error: 'Error verifying token', valid: false}
+      const errorResponse = handleFirebaseAuthError(error)
+      return {
+        valid: false, 
+        uid: null,
+        email: null,
+        error: errorResponse
+      };
     }
   }
+
 
   export async function clearSessionCookie() {
     const cookieStore = await cookies()
@@ -182,40 +170,6 @@ export async function setServerSession(token: string) {
     }
   }
 
-
-  export async function verifyUser(): Promise<UserStatus> {
-    try {
-      const cookieStore = await cookies()
-      const sessionCookie = cookieStore.get('_session_cookie')?.value
-  
-      if (!sessionCookie) {
-        return { isValid: false }
-      }
-  
-      // Verify the session cookie
-      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie)
-      console.log(decodedClaims)
-      
-      // Additional check to ensure user still exists and is not disabled
-      const user = await adminAuth.getUser(decodedClaims.uid)
-      
-      if (user.disabled) {
-        throw new Error('User account is disabled or email not verified')
-      }
-  
-      return {
-        isValid: true,
-        userId: user.uid
-      }
-    } catch (error) {
-      console.error('Error verifying user:', error)
-      return {
-        isValid: false,
-        error: error instanceof Error ? error.message : 'Failed to verify user'
-      }
-    }
-  }
-  
 
 
 /*

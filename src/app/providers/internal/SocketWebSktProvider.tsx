@@ -107,6 +107,13 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
     // Initial Connection
     socketInstance.on("connect", async () => {
       console.log("Socket connected with ID:", socketInstance.id);
+
+      setState(prev => ({
+        ...prev,
+        isConnected: true,
+        connectionError: null,
+        socketId: socketInstance.id ?? null
+      }));
   
       if (socketInstance.recovered && subscriptionManager.current) {
         console.log("Socket connection recovered with previous state");

@@ -19,6 +19,7 @@ if (!admin.apps.length) {
 
 export const adminTernSecureAuth = admin.auth();
 export const adminTernSecureDb = admin.firestore();
+export const TernSecureTenantManager = adminTernSecureAuth.tenantManager();
 
 type GetUserParams = {
   uid?: string;

@@ -23,6 +23,7 @@ export interface SignUpProps {
     redirectUrl?: string
     onError?: (error: Error) => void
     onSuccess?: () => void
+    tenantId? : string
 }
 
 interface PasswordRequirement {
