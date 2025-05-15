@@ -218,7 +218,7 @@ export function MessageList({ currentUserId, selectedUser }: MessageListProps) {
               <div
                 className={`rounded-2xl p-4 shadow-sm ${
                   msg.fromId === currentUserId
-                    ? 'bg-gradient-to-br from-primary/90 to-primary text-primary-foreground'
+                    ? 'bg-linear-to-br from-primary/90 to-primary text-primary-foreground'
                     : 'bg-muted/50 dark:bg-muted/80'
                 }`}
               >

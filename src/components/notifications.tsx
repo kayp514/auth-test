@@ -39,7 +39,7 @@ export function NotificationSender({ className = '' }: NotificationSenderProps) 
   };
 
   return (
-    <div className={`p-4 border rounded-lg shadow-sm ${className}`}>
+    <div className={`p-4 border rounded-lg shadow-xs ${className}`}>
       <div className="mb-4">
         <div className="flex items-center gap-2">
           <div 

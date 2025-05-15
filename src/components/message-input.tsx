@@ -70,7 +70,7 @@ export function MessageInput({
         <Button 
           variant="ghost" 
           size="icon" 
-          className="flex-shrink-0"
+          className="shrink-0"
           disabled={disabled}
         >
           <Paperclip className="h-5 w-5" />
@@ -90,7 +90,7 @@ export function MessageInput({
         <Button 
           variant="ghost" 
           size="icon" 
-          className="flex-shrink-0"
+          className="shrink-0"
           disabled={disabled}
         >
           <Smile className="h-5 w-5" />
@@ -101,7 +101,7 @@ export function MessageInput({
           onClick={handleSendMessage}
           disabled={!message.trim() || disabled}
           size="icon" 
-          className="flex-shrink-0"
+          className="shrink-0"
         >
           <Send className="h-5 w-5" />
           <span className="sr-only">Send message</span>

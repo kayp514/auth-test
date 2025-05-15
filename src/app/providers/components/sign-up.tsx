@@ -225,7 +225,7 @@ export function SignUp({redirectUrl, onError, onSuccess}: SignUpProps) {
             {/* Password Requirements */}
             <div
               className={cn(
-                "rounded-lg border bg-card text-card-foreground shadow-sm",
+                "rounded-lg border bg-card text-card-foreground shadow-xs",
                 "p-4 transition-all duration-200",
                 passwordFocused ? "opacity-100" : "opacity-70",
               )}

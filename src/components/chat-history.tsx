@@ -65,7 +65,7 @@ const ChatButtonItem = ({
       }`}
     >
       <div className="flex items-start space-x-4 w-full">
-        <div className="relative flex-shrink-0">
+        <div className="relative shrink-0">
           <Avatar className="h-10 w-10 ring-2 ring-background">
             {user.avatar ? (
               <AvatarImage src={avatar} alt={name} />
@@ -92,7 +92,7 @@ const ChatButtonItem = ({
              {name}
             </span>
             {lastMessage?.timestamp && (
-              <span className="text-xs text-muted-foreground flex-shrink-0">
+              <span className="text-xs text-muted-foreground shrink-0">
                 {formatMessageTime(lastMessage.timestamp)}
               </span>
             )}
