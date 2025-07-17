@@ -1,5 +1,6 @@
 import { useAuth } from "./providers/hooks/useAuth";
-import { auth } from "./providers/server/auth";
+//import { auth } from "./providers/server/auth";
+import { auth } from "./providers/server/AuthNewWithClass";
 //import { useAuth } from "@tern-secure/nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
