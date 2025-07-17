@@ -225,11 +225,11 @@ export function TernSecureClientProvider({
               requiresVerification,
             })
 
-            if (requiresVerification && !isVerified && shouldRedirect(pathname || "", isVerified)) {
-              if(initialLoad || !isRedirecting) {
-                redirectToLogin(pathname)
-              }
-            }
+            //if (requiresVerification && !isVerified && shouldRedirect(pathname || "", isVerified)) {
+            //  if(initialLoad || !isRedirecting) {
+            //    redirectToLogin(pathname)
+            //  }
+            //}
           } else {
             setAuthState({  
               isLoaded: true,
@@ -245,9 +245,9 @@ export function TernSecureClientProvider({
             })
 
 
-            if (shouldRedirect(pathname || "", false) && initialLoad) {
-              redirectToLogin()
-            }
+            //if (shouldRedirect(pathname || "", false) && initialLoad) {
+            //  redirectToLogin()
+            //}
           }
 
       } catch (error) {

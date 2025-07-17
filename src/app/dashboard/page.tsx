@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 //import { useAuth } from "../providers/hooks/useAuth";
 //import { useAuth } from '@tern-secure/nextjs'
-import { auth } from "../providers/server/auth";
+//import { auth } from "../providers/server/auth";
+import { auth } from "../providers/server/AuthNewWithClass";
 import Link from "next/link";
 import  { NotificationSender }  from '@/components/notifications'
 import TestConnection from "@/components/test-connection";
