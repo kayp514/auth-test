@@ -11,6 +11,7 @@ import TestConnection from "@/components/test-connection";
 
 export default async function Dashboard() {
 const {  user } = await auth();
+console.log('Dashboard user:', user);
 
 const handleHomeClick = async () => {
   'use server';

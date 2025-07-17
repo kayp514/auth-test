@@ -93,6 +93,7 @@ export function SignIn({
     async (user: User) => {
       try {
         const idToken = await user.getIdToken()
+        await setServerSession(idToken)
         const sessionResult = await createSessionCookie(idToken)
 
         if (!sessionResult.success) {

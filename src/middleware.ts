@@ -25,7 +25,6 @@ export const config = {
 
 // Initialize ternSecureMiddleware with custom config and must be edge runtime
 export default ternSecureMiddleware(async (req, request) => {
-    //this will protect all paths except public paths
     if(!publicPaths(request)) {
         await req.protect()
     }
