@@ -2,6 +2,7 @@ export interface User {
     uid: string
     email: string | null
     emailVerified?: boolean
+    tenantId?: string
     authTime?: number
     disabled?: boolean
 }

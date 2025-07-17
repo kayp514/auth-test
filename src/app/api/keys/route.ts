@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/app/providers/server/auth'
+//import { auth } from '@/app/providers/server/auth'
+import { auth } from '@/app/providers/server/AuthNewWithClass'
 
 const AUTH_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_URL
 

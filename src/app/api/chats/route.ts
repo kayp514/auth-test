@@ -1,4 +1,5 @@
-import { auth } from '@/app/providers/server/auth'
+//import { auth } from '@/app/providers/server/auth'
+import { auth } from '@/app/providers/server/AuthNewWithClass'
 import { getUserChats, createNewChat } from '@/lib/db/queries'
 import { NextResponse } from 'next/server'
 

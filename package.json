@@ -20,7 +20,7 @@
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-separator": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.1",
-    "@tern-secure/nextjs": "^4.2.8",
+    "@tern-secure/nextjs": "^4.2.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

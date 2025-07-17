@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AuthBackground } from "./background"
 import { cn } from "@/lib/utils"
-import { useSignUp } from '../../providers/hooks/useSignUp'
+import { useSignUp } from '../hooks/useSignUp'
 import { resendEmailVerification } from '../actions'
 
 const RESEND_COOLDOWN = 59 // 59 seconds cooldown for resend
