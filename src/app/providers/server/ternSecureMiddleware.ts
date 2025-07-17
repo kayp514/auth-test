@@ -107,6 +107,9 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
           if (auth.user.authTime) {
             response.headers.set("x-auth-time", auth.user.authTime.toString())
           }
+          if (auth.token) {
+            response.headers.set('Authorization', `Bearer ${auth.token}`);
+          }
         }
 
         return response
