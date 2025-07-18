@@ -1,6 +1,7 @@
 import { initializeServerApp, FirebaseServerApp} from "firebase/app";
-import { Auth, getAuth } from "firebase/auth";
+import { Auth, getAuth, getIdToken } from "firebase/auth";
 import type { TernSecureUser, TernSecureConfig} from '@/app/providers/utils/types';
+import { getInstallations, getToken } from "firebase/installations";
 
 export interface TernServerAuthOptions {
   firebaseConfig?: TernSecureConfig;
@@ -40,6 +41,12 @@ export class TernServerAuth {
 
   static clearInstance(): void {
     this.instance = null;
+  }
+
+  private getAuthIdToken = async(auth: Auth): Promise<string | undefined> => {
+    await auth.authStateReady();
+    if (!auth.currentUser) return;
+    return await getIdToken(auth.currentUser);
   }
 
   getServerApp = async(idToken?: string): Promise<AuthenticatedApp> => {

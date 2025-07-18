@@ -21,7 +21,6 @@ export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
       firebaseConfig: { ...initializeConfig() }
     });
     const headersList = await headers();
-     headersList.set('Referer', window.location.href);
     return serverAuth.getAuthenticatedAppFromHeaders(headersList);
   } catch (error) {
     console.error('Failed to get authenticated app:', error);

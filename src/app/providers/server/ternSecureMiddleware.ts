@@ -92,7 +92,6 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
         await callback(auth, request)
 
         const response = NextResponse.next()
-        // Set referer to the current request origin instead of the incoming referer
         response.headers.set('Referer', request.nextUrl.origin);
 
         if (auth.user) {
