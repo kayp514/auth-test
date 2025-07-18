@@ -5,7 +5,7 @@ import {
   verifyTernIdToken,
   verifyUser,
   type User,
-} from "./sessionTernSecure"
+} from "./SessionAdmin"
 import { adminTernSecureAuth } from "../utils/admin-init"
 
 

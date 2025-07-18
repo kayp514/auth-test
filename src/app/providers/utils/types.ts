@@ -140,6 +140,7 @@ export interface BaseUser {
   emailVerified?: boolean
   tenantId: string | null
   authTime?: number
+  disabled?: boolean
 }
 
 
@@ -183,4 +184,10 @@ export interface FirebaseAuthUser {
       creationTime: string | undefined
       lastSignInTime: string | undefined
     }
+}
+
+export interface SessionResult {
+  isAuthenticated: boolean
+  user: BaseUser | null
+  error?: string
 }

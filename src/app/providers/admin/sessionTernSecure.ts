@@ -11,6 +11,7 @@ interface FirebaseAuthError extends Error {
 export interface User {
     uid: string | null;
     email: string | null;
+    tenant?: string | null;
   }
 
 export interface Session {
@@ -78,7 +79,8 @@ export async function getIdToken() {
     const decodedClaims = await adminAuth.verifyIdToken(token)
     return {
       token: token,
-      userId: decodedClaims.uid
+      userId: decodedClaims.uid,
+      tenant: decodedClaims.tenant || null
     }
   } catch (error) {
     console.error('Error verifying session:', error)
@@ -109,6 +111,7 @@ export async function setServerSession(token: string) {
         valid: true,
         uid: decodedToken.uid,
         email: decodedToken.email || null,
+        tenant: decodedToken.firebase?.tenant || null,
         authTime: decodedToken.auth_time
       };
     } catch (error) {
@@ -130,6 +133,7 @@ export async function setServerSession(token: string) {
           valid: true, 
           uid: res.uid,
           email: res.email || null,
+          tenant: res.firebase?.tenant || null,
           authTime: res.auth_time
         };
     } catch (error) {

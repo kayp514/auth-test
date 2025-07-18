@@ -1,15 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { verifySession } from './node-session'
+import { verifySession, VerifySessionWithRestApi } from './edge-session'
+import { BaseUser } from "@/app/providers/utils/types"
 
-export interface UserInfo {
-  uid: string
-  email: string | null
-  emailVerified?: boolean
-  authTime?: number
-}
+
+export const runtime = "edge"
 
 interface Auth {
-  user: UserInfo | null
+  user: BaseUser | null
   token: string | null
   protect: () => Promise<void>
 }
@@ -89,33 +86,12 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
         
         await callback(auth, request)
 
-        const requestHeaders = new Headers(request.headers);
+        const response = NextResponse.next()
 
-        if (auth.user) {
-          // Set auth headers on the request for server components
-          requestHeaders.set("x-user-id", auth.user.uid)
-          if (auth.user.email) {
-            requestHeaders.set("x-user-email", auth.user.email)
-          }
-          if (auth.user.emailVerified !== undefined) {
-            requestHeaders.set("x-email-verified", auth.user.emailVerified.toString())
-          }
-          if (auth.user.authTime) {
-            requestHeaders.set("x-auth-time", auth.user.authTime.toString())
-          }
-          if (auth.token) {
-            requestHeaders.set('Authorization', `Bearer ${auth.token}`);
-          }
-        }
-        
-        requestHeaders.set('Referer', request.nextUrl.origin);
 
-        return NextResponse.next({
-          request: {
-            headers: requestHeaders,
-          },
-        })
+        return response
       } catch (error) {
+        // Handle unauthorized access
         if (error instanceof Error && error.message === 'Unauthorized access') {
           const redirectUrl = new URL("/sign-in", request.url)
           redirectUrl.searchParams.set("redirect", request.nextUrl.pathname)

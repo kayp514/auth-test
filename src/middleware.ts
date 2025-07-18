@@ -21,7 +21,8 @@ export const config = {
       // Always run for API routes
       '/(api|trpc)(.*)',
     ],
-  }  //user can add more config here
+    runtime: 'nodejs',
+  }
 
 // Initialize ternSecureMiddleware with custom config and must be edge runtime
 export default ternSecureMiddleware(async (req, request) => {

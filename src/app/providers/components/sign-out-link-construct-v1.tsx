@@ -4,7 +4,7 @@ import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { ternSecureAuth } from "../utils/client-init"
-import { clearSessionCookie } from '../server/sessionTernSecure'
+import { clearSessionCookie } from '../server/SessionAdmin'
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 

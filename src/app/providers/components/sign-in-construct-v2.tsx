@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
-import { createSessionCookie, setServerSession } from '../server/sessionTernSecure'
+import { createSessionCookie, setServerSession } from '../server/SessionAdmin'
 import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct-v2'
 import { useAuth } from '../hooks/useAuth'
@@ -93,8 +93,8 @@ export function SignIn({
     async (user: User) => {
       try {
         const idToken = await user.getIdToken()
-        await setServerSession(idToken)
-        const sessionResult = await createSessionCookie(idToken)
+        const sessionResult = await setServerSession(idToken)
+        //const sessionResult = await createSessionCookie(idToken)
 
         if (!sessionResult.success) {
           setFormError({

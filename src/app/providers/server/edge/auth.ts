@@ -1,7 +1,7 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
 import { BaseUser } from "@/app/providers/utils/types"
-import { verifyFirebaseToken } from "./SessionTernSecure"
+import { verifyFirebaseToken } from "./jwt"
 import { TernSecureError } from "@/app/providers/utils/errors"
 
 
@@ -17,6 +17,7 @@ export const auth = cache(async (): Promise<AuthResult> => {
   try {
    const cookieStore = await cookies()
 
+    // First try session cookie as it's more secure
     const sessionCookie = cookieStore.get("_session_cookie")?.value
     if (sessionCookie) {
       const result = await verifyFirebaseToken(sessionCookie, true)

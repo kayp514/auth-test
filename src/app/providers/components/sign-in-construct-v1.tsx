@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import { Loader2 } from 'lucide-react'
 import { getRedirectResult } from 'firebase/auth'
 import { ternSecureAuth } from '../utils/client-init'
-import { createSessionCookie } from '../server/sessionTernSecure'
+import { createSessionCookie } from '../server/SessionAdmin'
 import { AuthBackground } from './background'
 import { getValidRedirectUrl } from '../utils/construct-v1'
 import { useAuth } from '../hooks/useAuth'

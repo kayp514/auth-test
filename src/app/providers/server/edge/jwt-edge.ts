@@ -20,6 +20,18 @@ interface FirebaseIdTokenPayload {
   }
 }
 
+interface FirebaseTokenResult {
+  valid: boolean;
+  tenant?: string;
+  uid?: string;
+  email?: string | null;
+  emailVerified?: boolean;
+  authTime?: number;
+  issuedAt?: number;
+  expiresAt?: number;
+  error?: string;
+}
+
 // Firebase public key endpoints
 const FIREBASE_ID_TOKEN_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 const FIREBASE_SESSION_CERT_URL = "https://identitytoolkit.googleapis.com/v1/sessionCookiePublicKeys"
@@ -54,7 +66,7 @@ function decodeJwt(token: string) {
   }
 }
 
-export async function verifyFirebaseToken(token: string, isSessionCookie = false) {
+export async function verifyFirebaseToken(token: string, isSessionCookie = false): Promise<FirebaseTokenResult> {
   try {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
     if (!projectId) {
@@ -67,10 +79,10 @@ export async function verifyFirebaseToken(token: string, isSessionCookie = false
       throw new Error("Invalid token format")
     }
 
-    console.log("Token details:", {
-      header: decoded.header,
-      type: isSessionCookie ? "session_cookie" : "id_token",
-    })
+    //console.log("Token details:", {
+     // header: decoded.header,
+     // type: isSessionCookie ? "session_cookie" : "id_token",
+    //})
 
     let retries = 3
     let lastError: Error | null = null
@@ -154,4 +166,3 @@ export async function verifyFirebaseToken(token: string, isSessionCookie = false
     }
   }
 }
-
