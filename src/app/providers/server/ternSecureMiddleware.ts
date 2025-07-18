@@ -91,27 +91,33 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
         
         await callback(auth, request)
 
-        const response = NextResponse.next()
-        response.headers.set('Referer', request.nextUrl.origin);
+        const requestHeaders = new Headers(request.headers);
 
         if (auth.user) {
-          // Set auth headers
-          response.headers.set("x-user-id", auth.user.uid)
+          // Set auth headers on the request for server components
+          requestHeaders.set("x-user-id", auth.user.uid)
           if (auth.user.email) {
-            response.headers.set("x-user-email", auth.user.email)
+            requestHeaders.set("x-user-email", auth.user.email)
           }
           if (auth.user.emailVerified !== undefined) {
-            response.headers.set("x-email-verified", auth.user.emailVerified.toString())
+            requestHeaders.set("x-email-verified", auth.user.emailVerified.toString())
           }
           if (auth.user.authTime) {
-            response.headers.set("x-auth-time", auth.user.authTime.toString())
+            requestHeaders.set("x-auth-time", auth.user.authTime.toString())
           }
           if (auth.token) {
-            response.headers.set('Authorization', `Bearer ${auth.token}`);
+            requestHeaders.set('Authorization', `Bearer ${auth.token}`);
           }
         }
+        
+        // Set Referer for Firebase server-side requests
+        requestHeaders.set('Referer', request.nextUrl.origin);
 
-        return response
+        return NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        })
       } catch (error) {
         // Handle unauthorized access
         if (error instanceof Error && error.message === 'Unauthorized access') {
