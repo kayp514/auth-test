@@ -66,7 +66,7 @@ export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
    */
 export const auth = cache(async (): Promise<AuthResult> => {
   try {
-    const { currentUser } = await getAuthenticatedApp();
+    const { currentUser } = await getFirebaseServerApp();
     
     if (currentUser) {
       return {
