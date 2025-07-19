@@ -7,6 +7,7 @@ export const runtime = "edge"
 
 interface Auth {
   user: BaseUser | null
+  idToken?: string | null
   token: string | null
   protect: () => Promise<void>
 }
@@ -49,6 +50,7 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
     if (sessionResult.isAuthenticated && sessionResult.user) {
       return {
         user: sessionResult.user,
+        idToken: request.cookies.get("_tern")?.value || null,
         token: request.cookies.get("_session_cookie")?.value || request.cookies.get("_session_token")?.value || null,
         protect: async () => {},
       }
@@ -56,6 +58,7 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
 
     return {
       user: null,
+      idToken: null,
       token: null,
       protect,
     }
@@ -64,6 +67,7 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
     .message : "Unknown error")
     return {
       user: null,
+      idToken: null,
       token: null,
       protect,
     }
@@ -79,14 +83,27 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
 
 export function ternSecureMiddleware(callback: MiddlewareCallback) {
   return async function middleware(request: NextRequest) {
+    const requestHeaders = new Headers(request.headers);
     try {
       const auth = await edgeAuth(request)
+
+      request.headers.set('Referer', request.nextUrl.origin);
+      request.headers.set('referer', request.nextUrl.origin);
 
       try {
         
         await callback(auth, request)
 
-        const response = NextResponse.next()
+        const response = NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        })
+
+        response.headers.set('Authorization', `Bearer ${auth.idToken}`);
+        response.headers.set('Referer', request.nextUrl.origin);
+        response.headers.set('referer', request.nextUrl.origin);
+        
 
 
         return response

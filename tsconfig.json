@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "functions/user-status/index.ts", "src/app/providers/components/sign-in-construct-v2"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "functions/user-status/index.ts", "src/app/providers/components/sign-in-construct-v2", "src/app/providers/utils/fireconfig.js"],
   "exclude": ["node_modules"]
 }

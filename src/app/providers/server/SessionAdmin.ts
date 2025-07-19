@@ -88,7 +88,7 @@ export async function getIdToken() {
 export async function setServerSession(token: string) {
   try {
     const cookieStore = await cookies();
-    cookieStore.set('_session_token', token, {
+    cookieStore.set('_tern', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

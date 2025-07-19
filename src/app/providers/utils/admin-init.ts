@@ -1,5 +1,7 @@
 //lib/firebaseAdmin.ts
 
+import 'server-only'; 
+
 import admin from 'firebase-admin';
 import type { TernSecureUser } from './types';
 

@@ -1,4 +1,4 @@
-import { initializeServerApp, FirebaseServerApp} from "firebase/app";
+import { initializeServerApp, FirebaseServerApp, FirebaseServerAppSettings } from "firebase/app";
 import { Auth, getAuth, getIdToken } from "firebase/auth";
 import type { TernSecureUser, TernSecureConfig} from '@/app/providers/utils/types';
 import { getInstallations, getToken } from "firebase/installations";
@@ -49,20 +49,42 @@ export class TernServerAuth {
     return await getIdToken(auth.currentUser);
   }
 
-  getServerApp = async(idToken?: string): Promise<AuthenticatedApp> => {
+
+  async getAuthenticatedAppFromHeaders(headers: { get: (key: string) => string | null }): Promise<AuthenticatedApp> {
+    const authHeader = headers.get("Authorization");
+    const idToken = authHeader?.split("Bearer ")[1];
+    
+    let appSettings: FirebaseServerAppSettings = {
+      releaseOnDeref: headers
+    };
+
+    if (idToken && idToken.trim()) {
+      appSettings.authIdToken = idToken;
+    }
+
+    return this.getServerApp(appSettings);
+  }
+
+
+  getServerApp = async(appSettings?: FirebaseServerAppSettings): Promise<AuthenticatedApp> => {
     const firebaseConfig = this.#options.firebaseConfig;
     if (!firebaseConfig) {
       throw new Error("Firebase configuration is required to initialize the server app");
     }
 
+    const serverAppSettings: FirebaseServerAppSettings = {
+      ...appSettings
+    };
+
+
     const firebaseServerApp = initializeServerApp(
         firebaseConfig,
-        idToken ? { authIdToken: idToken } : {}
+        appSettings || {}
     );
 
     const auth = getAuth(firebaseServerApp);
     await auth.authStateReady();
-
+    
     return {
       firebaseServerApp,
       currentUser: auth.currentUser,
@@ -70,26 +92,9 @@ export class TernServerAuth {
     };
   }
 
-  async getAuthenticatedAppFromHeaders(headers: { get: (key: string) => string | null }): Promise<AuthenticatedApp> {
-    // Try Authorization header first
-    let authHeader = headers.get("Authorization");
-    let idToken = authHeader?.split("Bearer ")[1];
-
-    // Fallback to cookie if no Authorization header
-    if (!idToken) {
-      const cookieHeader = headers.get("Cookie");
-      if (cookieHeader) {
-        const cookies = Object.fromEntries(
-          cookieHeader.split('; ').map(c => {
-            const [key, ...valueParts] = c.split('=');
-            return [key, valueParts.join('=')];
-          })
-        );
-        idToken = cookies['_session_token'];
-      }
-    }
-
-    return this.getServerApp(idToken);
+  async ternServerUser() {
+    const { currentUser } = await this.getServerApp();
+    return currentUser;
   }
 
 

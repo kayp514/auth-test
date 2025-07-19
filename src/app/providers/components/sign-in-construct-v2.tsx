@@ -93,8 +93,8 @@ export function SignIn({
     async (user: User) => {
       try {
         const idToken = await user.getIdToken()
-        const sessionResult = await setServerSession(idToken)
-        //const sessionResult = await createSessionCookie(idToken)
+        await setServerSession(idToken)
+        const sessionResult = await createSessionCookie(idToken)
 
         if (!sessionResult.success) {
           setFormError({

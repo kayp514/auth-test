@@ -1,13 +1,22 @@
+import 'server-only'
+
 import { cache } from "react"
 import { headers } from "next/headers";
 import type { User as BaseUser } from "./types"
-import { initializeConfig } from "../utils/config";
-import { TernServerAuth, type AuthenticatedApp, type TernServerAuthOptions } from "./TernAuthClass"
-
+import type { TernSecureUser, TernSecureConfig} from '@/app/providers/utils/types';
+import { initializeConfig, loadFireConfig } from "../utils/config";
+import { firebaseConfig} from "../utils/fireconfig";
+import { TernServerAuth, type TernServerAuthOptions } from "./TernAuthClass"
+import { FirebaseServerAppSettings, initializeServerApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
 export interface AuthResult {
   user: BaseUser | null
   error: Error | null
+}
+
+export interface AuthenticatedApp {
+  currentUser?: TernSecureUser | null;
 }
 
 export async function TernSecureServer(opts: TernServerAuthOptions): Promise<TernServerAuth> {
@@ -15,12 +24,36 @@ export async function TernSecureServer(opts: TernServerAuthOptions): Promise<Ter
     return serverAuth;
 }
 
+export async function getFirebaseServerApp(): Promise<AuthenticatedApp> {
+  try {
+    const headersList = await headers();
+    const authIdToken = headersList.get('authorization')?.split(' ')[1];
+
+    const serverApp = initializeServerApp(firebaseConfig, { authIdToken });
+    const auth = getAuth(serverApp);
+    await auth.authStateReady();
+    if (!auth.currentUser) {
+      console.warn('No authenticated user found');
+      return { currentUser: null };
+    }
+    return {
+      currentUser: auth.currentUser
+    }
+    //return serverAuth.getAuthenticatedAppFromHeaders(authIdToken);
+  } catch (error) {
+    console.error('Failed to get authenticated app:', error);
+    throw error;
+  }
+}
+
 export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
   try {
+    const headersList = await headers();
+    
     const serverAuth = await TernSecureServer({
       firebaseConfig: { ...initializeConfig() }
     });
-    const headersList = await headers();
+    
     return serverAuth.getAuthenticatedAppFromHeaders(headersList);
   } catch (error) {
     console.error('Failed to get authenticated app:', error);
@@ -34,7 +67,6 @@ export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
 export const auth = cache(async (): Promise<AuthResult> => {
   try {
     const { currentUser } = await getAuthenticatedApp();
-    console.log('Current user in auth:', currentUser);
     
     if (currentUser) {
       return {

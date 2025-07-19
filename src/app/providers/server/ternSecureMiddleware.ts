@@ -1,23 +1,48 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, NextMiddleware} from 'next/server';
 import { verifySession } from './node-session'
+import { BaseUser } from "@/app/providers/utils/types"
+import { SIGN_IN_URL, SIGN_UP_URL } from './constants';
+import { createTernSecureRequest, TernSecureRequest } from '../backend'
+import { constants } from '../backend/constants'
+import {
+  redirectToSignInError,
+  redirectToSignUpError,
+} from './nextErrors';
 
-export interface UserInfo {
-  uid: string
-  email: string | null
-  emailVerified?: boolean
-  authTime?: number
+export type NextMiddlewareRequestParam = Parameters<NextMiddleware>['0'];
+export type NextMiddlewareReturn = ReturnType<NextMiddleware>;
+export type NextMiddlewareEvtParam = Parameters<NextMiddleware>['1'];
+
+
+
+type RedirectToParams = { returnBackUrl?: string | URL | null };
+export type RedirectFun<ReturnType> = (params?: RedirectToParams) => ReturnType;
+
+export type AuthObject = {
+  user: BaseUser | null
+  session: string | null
+  token?: string | null
 }
 
-interface Auth {
-  user: UserInfo | null
-  token: string | null
-  protect: () => Promise<void>
+export interface MiddlewareAuth extends AuthObject {
+  (): Promise<MiddlewareAuthObject>;
+  protect: () => Promise<void>;
+  ensureLoaded?: () => Promise<MiddlewareAuth>;
 }
 
-type MiddlewareCallback = (
-  auth: Auth,
-  request: NextRequest
-) => Promise<void>
+type MiddlewareHandler = (
+  auth: MiddlewareAuth, 
+  request: NextMiddlewareRequestParam,
+  event: NextMiddlewareEvtParam,
+) => NextMiddlewareReturn;
+
+
+
+export type MiddlewareAuthObject = AuthObject & {
+  redirectToSignIn: RedirectFun<Response>;
+  redirectToSignUp: RedirectFun<Response>;
+};
+
 
 
 /**
@@ -39,94 +64,236 @@ export function createRouteMatcher(patterns: string[]) {
 
 
 /**
- * Edge-compatible auth check
+ * Handle control flow errors in middleware
  */
-async function edgeAuth(request: NextRequest): Promise<Auth> {
-  async function protect() {
-    throw new Error("Unauthorized access")
+const handleControlError = (error: unknown, ternSecureRequest: TernSecureRequest, request: NextRequest): Response => {
+  if (error instanceof NextResponse) {
+    return error;
   }
+  
+  // Log error for debugging
+  console.error('Middleware control error:', error);
+  
+  // Return default next response for unhandled errors
+  return NextResponse.next();
+};
 
+/**
+ * Create enhanced request with all TernSecure headers for Firebase compatibility
+ */
+const createEnhancedRequest = (request: NextRequest): NextRequest => {
+  const requestHeaders = new Headers(request.headers);
+  const ternSecureRequest = createTernSecureRequest(request);
+  
+  // Set essential headers for Firebase API restrictions
+  requestHeaders.set(constants.Headers.Referrer, request.url);
+  requestHeaders.set(constants.Headers.Origin, new URL(request.url).origin);
+  requestHeaders.set(constants.Headers.Host, new URL(request.url).host);
+  
+  // Set TernSecure specific headers
+  requestHeaders.set(constants.Headers.TernSecureUrl, ternSecureRequest.ternUrl.toString());
+  requestHeaders.set(constants.Headers.ForwardedHost, new URL(request.url).host);
+  requestHeaders.set(constants.Headers.ForwardedProto, new URL(request.url).protocol.replace(':', ''));
+  
+  // Set user agent if not present
+  if (!requestHeaders.has(constants.Headers.UserAgent)) {
+    requestHeaders.set(constants.Headers.UserAgent, 'TernSecure-Middleware/1.0');
+  }
+  
+  // Set content type for JSON requests
+  if (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH') {
+    if (!requestHeaders.has(constants.Headers.ContentType)) {
+      requestHeaders.set(constants.Headers.ContentType, constants.ContentTypes.Json);
+    }
+  }
+  
+  return new NextRequest(request, {
+    headers: requestHeaders,
+  });
+};
+async function nodeAuth(request: NextRequest): Promise<AuthObject> {
   try {
     const sessionResult = await verifySession(request)
 
     if (sessionResult.isAuthenticated && sessionResult.user) {
       return {
         user: sessionResult.user,
-        token: request.cookies.get("_session_cookie")?.value || request.cookies.get("_session_token")?.value || null,
-        protect: async () => {},
+        token: request.cookies.get("_tern")?.value || null,
+        session: request.cookies.get("_session_cookie")?.value || request.cookies.get("_session_token")?.value || null,
       }
     }
 
     return {
       user: null,
+      session: null,
       token: null,
-      protect,
     }
   } catch (error) {
     console.error("Auth check error:", error instanceof Error ? error
     .message : "Unknown error")
     return {
       user: null,
+      session: null,
       token: null,
-      protect,
     }
   }
 }
+export interface MiddlewareOptions {
+  signInUrl?: string;
+  signUpUrl?: string;
+  debug?: boolean;
+}
+type MiddlewareOptionsCallback = (req: NextRequest) => MiddlewareOptions | Promise<MiddlewareOptions>;
 
+interface TernSecureMiddleware {
+  /**
+   * @example
+   * export default ternSecureMiddleware((auth, request, event) => { ... }, options);
+   */
+  (handler: MiddlewareHandler, options?: MiddlewareOptions): NextMiddleware;
+
+  /**
+   * @example
+   * export default ternSecureMiddleware((auth, request, event) => { ... }, (req) => options);
+   */
+  (handler: MiddlewareHandler, options?: MiddlewareOptionsCallback): NextMiddleware;
+
+  /**
+   * @example
+   * export default ternSecureMiddleware(options);
+   */
+  (options?: MiddlewareOptions): NextMiddleware;
+  /**
+   * @example
+   * export default ternSecureMiddleware;
+   */
+  (request: NextMiddlewareRequestParam, event: NextMiddlewareEvtParam): NextMiddlewareReturn;
+}
+
+
+export const ternSecureMiddleware = ((...args: unknown[]): NextMiddleware | NextMiddlewareReturn => {
+  const [request, event] = parseRequestAndEvent(args);
+  const [handler, params] = parseHandlerAndOptions(args);
+  
+  
+  const middleware = () => {
+    const withAuthNextMiddleware: NextMiddleware = async (request, event) => {
+      const resolvedParams = typeof params === 'function' ? await params(request) : params;
+
+      const signInUrl = resolvedParams.signInUrl || SIGN_IN_URL;
+      const signUpUrl = resolvedParams.signUpUrl || SIGN_UP_URL;
+      
+      // Create enhanced request with all TernSecure headers
+      const enhancedRequest = createEnhancedRequest(request);
+      const ternSecureRequest = createTernSecureRequest(enhancedRequest);
+
+      if (handler) {
+        // Create auth handler that implements MiddlewareAuth interface
+        const createAuthHandler = async (): Promise<MiddlewareAuth> => {
+          // Use enhanced request for nodeAuth to fix Firebase referer issue
+          const authObject = await nodeAuth(enhancedRequest);
+          
+          const getAuth = async (): Promise<MiddlewareAuthObject> => {
+            const { 
+              redirectToSignIn, 
+              redirectToSignUp 
+            } = createMiddlewareRedirects(ternSecureRequest, signInUrl, signUpUrl);
+            
+            return {
+              ...authObject,
+              redirectToSignIn,
+              redirectToSignUp,
+            };
+          };
+
+          const protect = async (): Promise<void> => {
+            if (!authObject.user || !authObject.session) {
+              request.headers.set(constants.Headers.Authorization, `Bearer ${authObject.token}`);
+              const redirectUrl = new URL(signInUrl || "/sign-in", enhancedRequest.url);
+              redirectUrl.searchParams.set("redirect", enhancedRequest.nextUrl.pathname);
+              throw NextResponse.redirect(redirectUrl);
+            }
+          };
+
+          // Return the MiddlewareAuth object with direct property access
+          const authHandler = Object.assign(getAuth, {
+            protect,
+            user: authObject.user,
+            session: authObject.session,
+            token: authObject.token,
+          });
+          
+          return authHandler as MiddlewareAuth;
+        };
+
+        // Execute handler with proper error handling
+        let handlerResult: Response = NextResponse.next({
+          request: {
+            headers: enhancedRequest.headers,
+          },
+        });
+        
+        try {
+          const auth = await createAuthHandler();
+          const userHandlerResult = await handler(auth, enhancedRequest, event);
+          handlerResult = userHandlerResult || handlerResult;
+        } catch (error) {
+          handlerResult = handleControlError(error, ternSecureRequest, enhancedRequest);
+        }
+        
+        return handlerResult;
+      }
+      
+      // If no handler, pass enhanced request downstream
+      return NextResponse.next({
+        request: {
+          headers: enhancedRequest.headers,
+        },
+      });
+    }
+
+    const nextMiddleware: NextMiddleware = async (request, event) => {
+      return withAuthNextMiddleware(request, event)
+    }
+
+    if (request && event) {
+      return nextMiddleware(request, event);
+    }
+
+    return nextMiddleware
+  };
+  return middleware();
+}) as TernSecureMiddleware;
+
+const parseRequestAndEvent = (args: unknown[]) => {
+  return [args[0] instanceof Request ? args[0] : undefined, args[0] instanceof Request ? args[1] : undefined] as [
+    NextMiddlewareRequestParam | undefined,
+    NextMiddlewareEvtParam | undefined,
+  ];
+};
+
+
+const parseHandlerAndOptions = (args: unknown[]) => {
+  return [
+    typeof args[0] === 'function' ? args[0] : undefined,
+    (args.length === 2 ? args[1] : typeof args[0] === 'function' ? {} : args[0]) || {},
+  ] as [MiddlewareHandler | undefined, MiddlewareOptions | MiddlewareOptionsCallback];
+};
 
 
 /**
- * Middleware factory that handles authentication and custom logic
- * @param customHandler Optional function for additional custom logic
+ * Create middleware redirect functions
  */
+const createMiddlewareRedirects = (ternSecureRequest: TernSecureRequest, signInUrl: string, signUpUrl: string) => {
+  const redirectToSignIn: MiddlewareAuthObject['redirectToSignIn'] = (opts = {}) => {
+    const url = signInUrl || ternSecureRequest.ternUrl.toString();
+    redirectToSignInError(url, opts.returnBackUrl);
+  };
 
-export function ternSecureMiddleware(callback: MiddlewareCallback) {
-  return async function middleware(request: NextRequest) {
-    try {
-      const auth = await edgeAuth(request)
+  const redirectToSignUp: MiddlewareAuthObject['redirectToSignUp'] = (opts = {}) => {
+    const url = signUpUrl || ternSecureRequest.ternUrl.toString();
+    redirectToSignUpError(url, opts.returnBackUrl);
+  };
 
-      try {
-        
-        await callback(auth, request)
-
-        const requestHeaders = new Headers(request.headers);
-
-        if (auth.user) {
-          // Set auth headers on the request for server components
-          requestHeaders.set("x-user-id", auth.user.uid)
-          if (auth.user.email) {
-            requestHeaders.set("x-user-email", auth.user.email)
-          }
-          if (auth.user.emailVerified !== undefined) {
-            requestHeaders.set("x-email-verified", auth.user.emailVerified.toString())
-          }
-          if (auth.user.authTime) {
-            requestHeaders.set("x-auth-time", auth.user.authTime.toString())
-          }
-          if (auth.token) {
-            requestHeaders.set('Authorization', `Bearer ${auth.token}`);
-          }
-        }
-        
-        requestHeaders.set('Referer', request.nextUrl.origin);
-
-        return NextResponse.next({
-          request: {
-            headers: requestHeaders,
-          },
-        })
-      } catch (error) {
-        if (error instanceof Error && error.message === 'Unauthorized access') {
-          const redirectUrl = new URL("/sign-in", request.url)
-          redirectUrl.searchParams.set("redirect", request.nextUrl.pathname)
-          return NextResponse.redirect(redirectUrl)
-        }
-        throw error
-      }
-    } catch (error) {
-      console.error("Middleware error:", error instanceof Error ? error.message : "Unknown error")
-      const redirectUrl = new URL("/sign-in", request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
-  }
-}
+  return { redirectToSignIn, redirectToSignUp };
+};

@@ -1,5 +1,6 @@
 import { ternSecureMiddleware, createRouteMatcher } from '@/app/providers/server/ternSecureMiddleware'
-
+import { headers } from 'next/headers';
+import { NextResponse } from 'next/server';
 const publicPaths = createRouteMatcher([
     '/sign-in',
     '/sign-up',
@@ -25,9 +26,20 @@ export const config = {
   }
 
 // Initialize ternSecureMiddleware with custom config and must be edge runtime
-export default ternSecureMiddleware(async (req, request) => {
-    if(!publicPaths(request)) {
-        await req.protect()
-    }
+export default ternSecureMiddleware(async (auth, request) => {
+  const requestHeaders = new Headers(request.headers);
+  console.log('Request Headers:', Object.fromEntries(requestHeaders.entries()));
+  if (!publicPaths(request)) {
+    await auth.protect();
+  }
 
-})
+  requestHeaders.append('Authorization', `Bearer ${auth.token}`);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  return response;
+});
