@@ -70,10 +70,6 @@ export function SignIn({
   const InternalComponent = handleInternalRoute(pathname || "")
   const validRedirectUrl = getValidRedirectUrl(searchParams, redirectUrl)
 
-  if (InternalComponent) {
-    return <InternalComponent />
-  }
-
 
   useEffect(() => {
     if (authError && status !== "loading" && status !== "unauthenticated") {
@@ -93,7 +89,6 @@ export function SignIn({
     async (user: User) => {
       try {
         const idToken = await user.getIdToken()
-        await setServerSession(idToken)
         const sessionResult = await createSessionCookie(idToken)
 
         if (!sessionResult.success) {
@@ -107,9 +102,7 @@ export function SignIn({
 
         onSuccess?.()
 
-        // Use the finalRedirectUrl for navigation
         if (process.env.NODE_ENV === "production") {
-          // Use window.location.href in production for a full page reload
           window.location.href = validRedirectUrl
         } else {
           // Use router.push in development

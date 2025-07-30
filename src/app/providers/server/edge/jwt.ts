@@ -73,17 +73,11 @@ export async function verifyFirebaseToken(token: string, isSessionCookie = false
       throw new Error("Firebase Project ID is not configured")
     }
 
-    // Decode token for debugging and type checking
     const decoded = decodeJwt(token)
     if (!decoded) {
       throw new Error("Invalid token format")
     }
-
-    //console.log("Token details:", {
-     // header: decoded.header,
-     // type: isSessionCookie ? "session_cookie" : "id_token",
-    //})
-
+    
     let retries = 3
     let lastError: Error | null = null
 

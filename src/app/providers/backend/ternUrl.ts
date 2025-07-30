@@ -14,7 +14,9 @@ export type WithTernUrl<T> = T & {
   ternUrl: TernUrl;
 };
 
-export const createTernUrl = (...args: ConstructorParameters<typeof TernUrl>): TernUrl => {
+export const createTernUrl = (
+  ...args: ConstructorParameters<typeof TernUrl>
+): TernUrl => {
   return new TernUrl(...args);
 };
 

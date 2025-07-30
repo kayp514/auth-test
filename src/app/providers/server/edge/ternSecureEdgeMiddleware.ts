@@ -7,7 +7,6 @@ export const runtime = "edge"
 
 interface Auth {
   user: BaseUser | null
-  idToken?: string | null
   token: string | null
   protect: () => Promise<void>
 }
@@ -25,7 +24,6 @@ export function createRouteMatcher(patterns: string[]) {
   return (request: NextRequest): boolean => {
     const { pathname } = request.nextUrl
     return patterns.some((pattern) => {
-      // Convert glob pattern to regex safely without dynamic evaluation
       const regexPattern = pattern
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
       .replace(/\\\*/g, ".*")
@@ -46,19 +44,18 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
 
   try {
     const sessionResult = await verifySession(request)
+    console.log("Session Result:", sessionResult)
 
     if (sessionResult.isAuthenticated && sessionResult.user) {
       return {
         user: sessionResult.user,
-        idToken: request.cookies.get("_tern")?.value || null,
-        token: request.cookies.get("_session_cookie")?.value || request.cookies.get("_session_token")?.value || null,
+        token: request.cookies.get("_session_cookie")?.value || null,
         protect: async () => {},
       }
     }
 
     return {
       user: null,
-      idToken: null,
       token: null,
       protect,
     }
@@ -67,13 +64,11 @@ async function edgeAuth(request: NextRequest): Promise<Auth> {
     .message : "Unknown error")
     return {
       user: null,
-      idToken: null,
       token: null,
       protect,
     }
   }
 }
-
 
 
 /**
@@ -100,15 +95,8 @@ export function ternSecureMiddleware(callback: MiddlewareCallback) {
           },
         })
 
-        response.headers.set('Authorization', `Bearer ${auth.idToken}`);
-        response.headers.set('Referer', request.nextUrl.origin);
-        response.headers.set('referer', request.nextUrl.origin);
-        
-
-
         return response
       } catch (error) {
-        // Handle unauthorized access
         if (error instanceof Error && error.message === 'Unauthorized access') {
           const redirectUrl = new URL("/sign-in", request.url)
           redirectUrl.searchParams.set("redirect", request.nextUrl.pathname)

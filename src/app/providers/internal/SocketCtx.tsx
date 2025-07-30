@@ -10,19 +10,14 @@ import type {
 
 
 
-export interface SocketCtxState {
+export interface SocketCtxState {property: string}
 
-}
-
-export interface SocketCtxActions {
-
-}
+export interface SocketCtxActions {property: string}
 
 export interface SocketCtxValue extends SocketCtxState, SocketCtxActions {}
 
 const initialState: SocketCtxValue = {
-
-
+  property: "initial value"
 }
 
 export const SocketCtx = createContext<SocketCtxValue>(initialState)

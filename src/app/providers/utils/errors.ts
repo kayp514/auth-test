@@ -241,6 +241,7 @@ export function handleFirebaseAuthError(error: unknown): AuthErrorResponse {
         return { success: false, message: 'Login popup was blocked. Please enable popups', code: 'POPUP_BLOCKED' };
       case 'expired-action-code':
       case 'user-token-expired':
+      case 'session-cookie-expired':
         return { success: false, message: 'Your session has expired. Please login again', code: 'EXPIRED_TOKEN' };
       default:
         return { success: false, message: 'An unexpected error occurred', code: 'INTERNAL_ERROR' };

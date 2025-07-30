@@ -773,16 +773,13 @@ export function SocketWebSktProvider({ children, config }: SocketWebSktProviderP
       handlers.clear();
     };
   }, [
-    config.clientId,
     handlePresenceEnter,
     handlePresenceUpdate,
     handlePresenceSync,
     handlePresenceLeave,
     handleNotification,
-    isEncryptionReady,
+    reAuthenticate,
     triggerEventHandlers,
-    [setupConnectionHandlers],
-    state.isConnected
   ]);
   
 

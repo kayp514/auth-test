@@ -4,7 +4,7 @@ const Attributes = {
   AuthStatus: '__ternsecureAuthStatus',
   AuthReason: '__ternsecureAuthReason',
   AuthMessage: '__ternsecureAuthMessage',
-  TernUrl: '__ternsecureUrl',
+  TernSecureUrl: '__ternsecureUrl',
 } as const;
 
 const Cookies = {
@@ -22,6 +22,7 @@ const Cookies = {
 
 const Headers = {
   Accept: 'accept',
+  AuthMessage: 'x-ternsecure-auth-message',
   Authorization: 'authorization',
   AuthReason: 'x-ternsecure-auth-reason',
   AuthSignature: 'x-ternsecure-auth-signature',
@@ -48,6 +49,7 @@ const Headers = {
   UserAgent: 'user-agent',
   ReportingEndpoints: 'reporting-endpoints',
 } as const;
+
 
 const ContentTypes = {
   Json: 'application/json',

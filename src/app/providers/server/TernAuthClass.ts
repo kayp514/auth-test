@@ -1,10 +1,10 @@
 import { initializeServerApp, FirebaseServerApp, FirebaseServerAppSettings } from "firebase/app";
 import { Auth, getAuth, getIdToken } from "firebase/auth";
-import type { TernSecureUser, TernSecureConfig} from '@/app/providers/utils/types';
-import { getInstallations, getToken } from "firebase/installations";
+import type { TernSecureUser, TernSecureConfig, TernSecureServerConfig} from '@/app/providers/utils/types';
 
 export interface TernServerAuthOptions {
   firebaseConfig?: TernSecureConfig;
+  firebaseServerConfig?: TernSecureServerConfig;
   authIdToken?: string;
 }
 
@@ -16,6 +16,7 @@ export interface AuthenticatedApp {
 
 export class TernServerAuth {
   private static instance: TernServerAuth | null = null;
+  private auth!: Auth;
   #options: TernServerAuthOptions = {};
 
 
@@ -43,21 +44,23 @@ export class TernServerAuth {
     this.instance = null;
   }
 
-  private getAuthIdToken = async(auth: Auth): Promise<string | undefined> => {
-    await auth.authStateReady();
-    if (!auth.currentUser) return;
-    return await getIdToken(auth.currentUser);
+  getAuthIdToken = async(): Promise<string | undefined> => {
+    await this.auth.authStateReady();
+    if (!this.auth.currentUser) return;
+    return await getIdToken(this.auth.currentUser);
   }
 
 
-  async getAuthenticatedAppFromHeaders(headers: { get: (key: string) => string | null }): Promise<AuthenticatedApp> {
+  getAuthenticatedAppFromHeaders = async(headers: { get: (key: string) => string | null }): Promise<AuthenticatedApp> => {
     const authHeader = headers.get("Authorization");
     const idToken = authHeader?.split("Bearer ")[1];
     
-    let appSettings: FirebaseServerAppSettings = {
-      releaseOnDeref: headers
-    };
+    let appSettings: FirebaseServerAppSettings = {}
 
+    appSettings = {
+      releaseOnDeref: headers,
+    };
+    
     if (idToken && idToken.trim()) {
       appSettings.authIdToken = idToken;
     }
@@ -67,34 +70,24 @@ export class TernServerAuth {
 
 
   getServerApp = async(appSettings?: FirebaseServerAppSettings): Promise<AuthenticatedApp> => {
-    const firebaseConfig = this.#options.firebaseConfig;
-    if (!firebaseConfig) {
-      throw new Error("Firebase configuration is required to initialize the server app");
+    const firebaseServerConfig = this.#options.firebaseServerConfig;
+    if (!firebaseServerConfig) {
+      throw new Error("Firebase Server configuration is required to initialize the server app");
     }
 
-    const serverAppSettings: FirebaseServerAppSettings = {
-      ...appSettings
-    };
-
-
     const firebaseServerApp = initializeServerApp(
-        firebaseConfig,
+        firebaseServerConfig,
         appSettings || {}
     );
 
-    const auth = getAuth(firebaseServerApp);
-    await auth.authStateReady();
-    
+    this.auth = getAuth(firebaseServerApp);
+    await this.auth.authStateReady();
+
     return {
       firebaseServerApp,
-      currentUser: auth.currentUser,
-      auth
+      currentUser: this.auth.currentUser,
+      auth: this.auth
     };
-  }
-
-  async ternServerUser() {
-    const { currentUser } = await this.getServerApp();
-    return currentUser;
   }
 
 

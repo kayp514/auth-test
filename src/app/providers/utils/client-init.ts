@@ -1,9 +1,10 @@
 'use client'
 
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, setPersistence, browserSessionPersistence, browserLocalPersistence, initializeAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence, browserLocalPersistence, inMemoryPersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getInstallations, getToken } from "firebase/installations";
 
 const config = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,10 +19,10 @@ const config = {
 // Initialize immediately
 const clientApp = getApps().length === 0 ? initializeApp(config, 'Auth-Test') : getApps()[0];
 export const ternSecureAuth = initializeAuth(clientApp);
-setPersistence(ternSecureAuth, browserLocalPersistence); //to change later user should be able to choose persistance
+export const installations = getInstallations(clientApp);
+setPersistence(ternSecureAuth, inMemoryPersistence);
 const firestore = getFirestore(clientApp);
 const storage = getStorage(clientApp);
-
 
 export const TernSecureAuth = () => ternSecureAuth;
 export const TernSecureFirestore = () => firestore;

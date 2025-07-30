@@ -2,16 +2,15 @@ import 'server-only'
 
 import { cache } from "react"
 import { headers } from "next/headers";
-import type { User as BaseUser } from "./types"
-import type { TernSecureUser, TernSecureConfig} from '@/app/providers/utils/types';
-import { initializeConfig, loadFireConfig } from "../utils/config";
+import type { TernSecureUser } from '@/app/providers/utils/types';
+import { initializeServerConfig } from "../utils/config";
 import { firebaseConfig} from "../utils/fireconfig";
 import { TernServerAuth, type TernServerAuthOptions } from "./TernAuthClass"
-import { FirebaseServerAppSettings, initializeServerApp } from "firebase/app";
+import { initializeServerApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 export interface AuthResult {
-  user: BaseUser | null
+  user: TernSecureUser | null
   error: Error | null
 }
 
@@ -33,13 +32,11 @@ export async function getFirebaseServerApp(): Promise<AuthenticatedApp> {
     const auth = getAuth(serverApp);
     await auth.authStateReady();
     if (!auth.currentUser) {
-      console.warn('No authenticated user found');
       return { currentUser: null };
     }
     return {
       currentUser: auth.currentUser
     }
-    //return serverAuth.getAuthenticatedAppFromHeaders(authIdToken);
   } catch (error) {
     console.error('Failed to get authenticated app:', error);
     throw error;
@@ -51,7 +48,7 @@ export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
     const headersList = await headers();
     
     const serverAuth = await TernSecureServer({
-      firebaseConfig: { ...initializeConfig() }
+      firebaseServerConfig: { ...initializeServerConfig() }
     });
     
     return serverAuth.getAuthenticatedAppFromHeaders(headersList);
@@ -66,16 +63,11 @@ export async function getAuthenticatedApp(): Promise<AuthenticatedApp> {
    */
 export const auth = cache(async (): Promise<AuthResult> => {
   try {
-    const { currentUser } = await getFirebaseServerApp();
-    
+    const { currentUser } = await getAuthenticatedApp();
+
     if (currentUser) {
       return {
-        user: {
-          uid: currentUser.uid,
-          email: currentUser.email || null,
-          tenantId: currentUser.tenantId || 'default',
-          authTime: currentUser.authTime
-        },
+        user: currentUser,
         error: null
       };
     }
@@ -104,7 +96,7 @@ export const isAuthenticated = cache(async (): Promise<boolean>  => {
 /**
  * Get user info from auth result
  */
-export const getUser = cache(async (): Promise<BaseUser | null> => {
+export const getUser = cache(async (): Promise<TernSecureUser | null> => {
   const { user } = await auth()
   return user
 })
@@ -113,7 +105,7 @@ export const getUser = cache(async (): Promise<BaseUser | null> => {
  * Require authentication
  * Throws error if not authenticated
  */
-export const requireAuth = cache(async (): Promise<BaseUser> => {
+export const requireAuth = cache(async (): Promise<TernSecureUser> => {
   const { user, error } = await auth()
 
   if (!user) {

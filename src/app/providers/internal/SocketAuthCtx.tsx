@@ -22,7 +22,7 @@ export interface SocketAuthCtxState {
 }
 
 export interface SocketAuthCtxActions {
-    authenticate: () => {};
+    authenticate: () => object; // {} causes type error
     exchangeKeys: (sessionId: string) => Promise<void>;
     reAuthenticate: () => Promise<void>;
   }

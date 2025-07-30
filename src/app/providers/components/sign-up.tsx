@@ -36,9 +36,9 @@ export function SignUp({redirectUrl, onError, onSuccess}: SignUpProps) {
     const InternalComponent = handleInternalRoute(pathname)
     const { setEmail: setContextEmail } = useSignUp()
 
-  if (InternalComponent) {
-            return <InternalComponent />
-    }
+  //if (InternalComponent) {
+   //         return <InternalComponent />
+  //  }
 
   
   const [formData, setFormData] = useState({

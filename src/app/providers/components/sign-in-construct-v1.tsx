@@ -68,9 +68,9 @@ export function SignIn({
   const InternalComponent = handleInternalRoute(pathname || "")
   const validRedirectUrl = getValidRedirectUrl(redirectUrl, new URLSearchParams(window.location.search))
 
-  if (InternalComponent) {
-    return <InternalComponent />
-  }
+  //if (InternalComponent) {
+  //  return <InternalComponent />
+  //}
 
 
   useEffect(() => {
