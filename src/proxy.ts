@@ -1,8 +1,3 @@
-//import {
-//  ternSecureMiddleware,
-//  createRouteMatcher,
-//} from "@/app/providers/server/ternSecureMiddleware";
-
 import { ternSecureProxy, createRouteMatcher } from '@tern-secure/nextjs/server';
 
 const publicPaths = createRouteMatcher([
@@ -21,12 +16,12 @@ export const config = {
   ],
 };
 
-// Initialize ternSecureMiddleware with custom config and must be edge runtime
-export default ternSecureProxy(async (auth, request) => {
-  if (!publicPaths(request)) {
-    await auth.protect();
-  }
-}, {
+export default ternSecureProxy(
+  async (auth, request) => {
+    if (!publicPaths(request)) {
+      await auth.protect();
+    }
+  }, {
   appCheck: {
     strategy: 'memory'
   }

@@ -5,12 +5,6 @@ const nextConfig: NextConfig = {
   //  removeConsole: process.env.NODE_ENV === 'production',
   //},
 
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['https://auth-test-one-chi.vercel.app', 'http://localhost'],
-    },
-  },
-
   async rewrites() {
     return [
       {
