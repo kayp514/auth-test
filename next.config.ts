@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
   //},
 
   experimental: {
-    nodeMiddleware: true,
     serverActions: {
       allowedOrigins: ['https://auth-test-one-chi.vercel.app', 'http://localhost'],
     },
