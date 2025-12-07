@@ -3,7 +3,6 @@
 //import { auth } from "./providers/server/AuthNewWithClass";
 //import { useAuth } from "@tern-secure/nextjs";
 import { auth } from "@tern-secure/nextjs/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export default async function Home() {
