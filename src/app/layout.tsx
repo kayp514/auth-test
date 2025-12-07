@@ -35,7 +35,7 @@ export default function RootLayout({
             siteKey: "6LfzGRgsAAAAAGEvbwbcLgT4IHWmuWv4kEDRA5hi",
             isTokenAutoRefreshEnabled: true,
           }}
-          ternUIUrl="https://cdn.jsdelivr.net/npm/@tern-secure/auth@1.1.0-canary.v20251206170928/dist/ternsecure.browser.js"
+          ternUIUrl="https://cdn.jsdelivr.net/npm/@tern-secure/auth@1.1.0-canary.v20251207162402/dist/ternsecure.browser.js"
           persistence="browserCookie"
           requiresVerification={false}
         >
