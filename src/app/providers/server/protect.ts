@@ -1,5 +1,6 @@
 import { isNextFetcher } from './nextFetcher';
 import type { CheckCustomClaims } from '../types';
+import type { RedirectFun } from './ternSecureMiddleware';
 
 type AuthProtectOptions = {
   /**
