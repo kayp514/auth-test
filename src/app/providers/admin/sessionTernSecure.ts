@@ -6,25 +6,18 @@ import {
   handleFirebaseAuthError,
   type AuthErrorResponse,
 } from "../utils/errors";
+import type { DecodedIdToken } from "../types";
 
-
-export interface User {
-  uid: string | null;
-  email: string | null;
-  tenant?: string | null;
-}
-
-export interface Session {
-  user: User | null;
-  token: string | null;
-  error: Error | null;
-}
-
-interface TernVerificationResult extends User {
-  valid: boolean;
-  authTime?: number;
-  error?: AuthErrorResponse;
-}
+export type TernVerificationResult =
+  | (DecodedIdToken & {
+      valid: true;
+      token?: string;
+      error?: never;
+    })
+  | {
+      valid: false;
+      error: AuthErrorResponse;
+    };
 
 export async function createSessionCookie(idToken: string) {
   try {
@@ -112,18 +105,14 @@ export async function verifyTernIdToken(
   try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     return {
+      ...decodedToken,
       valid: true,
-      uid: decodedToken.uid,
-      email: decodedToken.email || null,
-      tenant: decodedToken.firebase?.tenant || null,
-      authTime: decodedToken.auth_time,
+      token: token,
     };
   } catch (error) {
     const errorResponse = handleFirebaseAuthError(error);
     return {
       valid: false,
-      uid: null,
-      email: null,
       error: errorResponse,
     };
   }
@@ -135,18 +124,13 @@ export async function verifyTernSessionCookie(
   try {
     const res = await adminAuth.verifySessionCookie(session);
     return {
+      ...res,
       valid: true,
-      uid: res.uid,
-      email: res.email || null,
-      tenant: res.firebase?.tenant || null,
-      authTime: res.auth_time,
     };
   } catch (error) {
     const errorResponse = handleFirebaseAuthError(error);
     return {
       valid: false,
-      uid: null,
-      email: null,
       error: errorResponse,
     };
   }

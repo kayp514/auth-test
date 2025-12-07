@@ -1,9 +1,5 @@
 import { isNextFetcher } from './nextFetcher';
-
-type  CheckCustomClaims = {
-  role?: never
-  permissions?: never
-};
+import type { CheckCustomClaims } from '../types';
 
 type AuthProtectOptions = {
   /**

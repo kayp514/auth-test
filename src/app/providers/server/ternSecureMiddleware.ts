@@ -1,14 +1,16 @@
-import { notFound as nextjsNotFound } from 'next/navigation';
 import { NextRequest, NextResponse, NextMiddleware } from "next/server";
-import { verifySession } from "./node-session";
 import { BaseUser } from "@/app/providers/utils/types";
 import type {
   NextMiddlewareEvtParam,
   NextMiddlewareRequestParam,
   NextMiddlewareReturn,
-} from "./types";
+} from "../types";
 import { SIGN_IN_URL, SIGN_UP_URL } from "./constants";
-import { createTernSecureRequest, TernSecureRequest } from "../backend";
+import {
+  TernSecureRequest,
+  createTernSecureRequest,
+  authenticateRequest,
+} from "../backend";
 import { redirectToSignInError, redirectToSignUpError } from "./nextErrors";
 
 type RedirectToParams = { returnBackUrl?: string | URL | null };
@@ -35,21 +37,6 @@ export type MiddlewareAuthObject = AuthObject & {
   redirectToSignUp: RedirectFun<Response>;
 };
 
-/**
- * Create a route matcher function for public paths
- */
-export const createRouteMatcher = (patterns: string[]) => {
-  return (request: NextRequest): boolean => {
-    const { pathname } = request.nextUrl;
-    return patterns.some((pattern) => {
-      const regexPattern = pattern
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        .replace(/\\\*/g, ".*");
-
-      return new RegExp(`^${regexPattern}$`).test(pathname);
-    });
-  };
-};
 
 /**
  * Handle control flow errors in middleware
@@ -68,19 +55,22 @@ const handleControlError = (
   return NextResponse.next();
 };
 
-const nodeAuth = async (request: NextRequest): Promise<AuthObject> => {
+const authenticateMiddlewareRequest = async (
+  request: NextRequest
+): Promise<AuthObject> => {
   try {
-    const sessionResult = await verifySession(request);
-    if (sessionResult.isAuthenticated && sessionResult.user) {
-      return {
-        user: sessionResult.user,
-        session: request.cookies.get("_session_cookie")?.value || null,
-      };
-    }
+    const requestState = await authenticateRequest(request);
+    const authResult = requestState.auth();
 
+    // Convert SignInAuthObject to AuthObject format
     return {
-      user: null,
-      session: null,
+      user: {
+        uid: authResult.session.uid,
+        email: authResult.session.email || null,
+        tenantId: authResult.session.firebase?.tenant || "default",
+        authTime: authResult.session.auth_time,
+      },
+      session: requestState.token,
     };
   } catch (error) {
     console.error(
@@ -148,14 +138,14 @@ export const ternSecureMiddleware = ((
       const signInUrl = resolvedParams.signInUrl || SIGN_IN_URL;
       const signUpUrl = resolvedParams.signUpUrl || SIGN_UP_URL;
 
-      const ternSecureRequest = createTernSecureRequest(request);
       let handlerResult: Response = NextResponse.next();
 
       if (handler) {
         const createAuthHandler = async (): Promise<MiddlewareAuth> => {
-          const authObject = await nodeAuth(request);
+          const authObject = await authenticateMiddlewareRequest(request);
 
           const getAuth = async (): Promise<MiddlewareAuthObject> => {
+            const ternSecureRequest = createTernSecureRequest(request);
             const { redirectToSignIn, redirectToSignUp } =
               createMiddlewareRedirects(
                 ternSecureRequest,
@@ -196,6 +186,7 @@ export const ternSecureMiddleware = ((
           const userHandlerResult = await handler(auth, request, event);
           handlerResult = userHandlerResult || handlerResult;
         } catch (error) {
+          const ternSecureRequest = createTernSecureRequest(request);
           handlerResult = handleControlError(error, ternSecureRequest, request);
         }
 
@@ -266,12 +257,3 @@ const createMiddlewareRedirects = (
 
   return { redirectToSignIn, redirectToSignUp };
 };
-
-const createMiddlewareProtect = (
-  ternSecureRequest: TernSecureRequest,
-  redirectToSignIn: RedirectFun<Response>,
-) => {
-  return (async (params: any, options: any) => {
-    const notFound = () => nextjsNotFound();
-  })
-}

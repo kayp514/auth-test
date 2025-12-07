@@ -2,40 +2,34 @@
 
 import {
   verifyTernSessionCookie,
+  type TernVerificationResult,
 } from "@/app/providers/admin/sessionTernSecure";
 
 export async function verifyFirebaseToken(
-  token: string,
-) {
+  token: string
+): Promise<TernVerificationResult> {
   if (!token) {
     return {
       valid: false,
-      uid: null,
-      email: null,
-      tenant: null,
-      error: " Invalid Token format",
+      error: {
+        success: false,
+        code: "INVALID_TOKEN",
+        message: "Token is required for verification",
+      },
     };
   }
 
   try {
-      const res = await verifyTernSessionCookie(token);
-      return {
-        valid: res.valid,
-        uid: res.uid,
-        email: res.email,
-        tenant: res.tenant,
-        authTime: res.authTime,
-        error: res.error,
-      };
+    return await verifyTernSessionCookie(token);
   } catch (error) {
     console.error("Error verifying token:", error);
     return {
       valid: false,
-      uid: null,
-      email: null,
-      tenant: null,
-      error:
-        error instanceof Error ? error.message : "Token verification failed",
+      error: {
+        success: false,
+        code: "INVALID_TOKEN",
+        message: error instanceof Error ? error.message : "Token verification failed",
+      }
     };
   }
 }

@@ -2,7 +2,8 @@
 
 import { Chat } from "@/components/chat"
 import { ChatProvider } from "../providers/internal/ChatProvider"
-import { useAuth } from '@/app/providers/hooks/useAuth'
+//import { useAuth } from '@/app/providers/hooks/useAuth'
+import { useAuth } from "@tern-secure/nextjs";
 import { ClientMetaData } from "../providers/utils/socket"
 
 export default function Page() {

@@ -1,7 +1,7 @@
 import { constants } from '../backend/constants'
 import type { NextRequest } from 'next/server';
 
-import type { RequestLike } from './types';
+import type { RequestLike } from '../types';
 
 
 export function getCustomAttributeFromRequest(req: RequestLike, key: string): string | null | undefined {

@@ -1,14 +1,14 @@
 //import { useAuth } from "./providers/hooks/useAuth";
-import { auth } from "./providers/server/edge/auth";
+//import { auth } from "./providers/server/auth";
 //import { auth } from "./providers/server/AuthNewWithClass";
 //import { useAuth } from "@tern-secure/nextjs";
+import { auth } from "@tern-secure/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export default async function Home() {
 //const  { user, isAuthenticated, isLoaded }  = useAuth();
 const { user } = await auth();
-console.log('Home user:', user?.uid);
 
 
 

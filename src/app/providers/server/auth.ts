@@ -28,14 +28,15 @@ export const auth = cache(async (): Promise<AuthResult> => {
               : null,
           tenantId: result.tenant || "default",
           authTime:
-            result.authTime && typeof result.authTime === "number"
-              ? result.authTime
+            result.auth_time && typeof result.auth_time === "number"
+              ? result.auth_time
               : undefined,
         };
         return { user, error: null };
+      } else {
+        console.error("Session cookie verification failed:", result.error);
       }
     }
-
     return {
       user: null,
       error: new TernSecureError("UNAUTHENTICATED", "No valid session found"),

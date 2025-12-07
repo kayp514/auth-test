@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { TernSecureProvider } from "./providers/TernSecureProvider";
-//import { TernSecureProvider, SignOut } from "@tern-secure/nextjs";
-import { SignOut } from "./providers/components/sign-out-construct-v2";
+//import { TernSecureProvider } from "./providers/TernSecureProvider";
+import { TernSecureProvider, UserButton} from "@tern-secure/nextjs";
+//import { SignOut } from "./providers/components/sign-out-construct-v2";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,9 +29,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TernSecureProvider requiresVerification={false}>
+        <TernSecureProvider
+        appCheck={{
+          provider: 'reCaptchaV3',
+          siteKey: '6LfzGRgsAAAAAGEvbwbcLgT4IHWmuWv4kEDRA5hi'
+        }}
+        requiresVerification={false}>
           {children}
-          <SignOut />
+          <UserButton />
         </TernSecureProvider>
       </body>
     </html>
