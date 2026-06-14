@@ -33,9 +33,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "functions/user-status/index.ts",
-    "src/app/providers/components/sign-in-construct-v2",
-    "src/app/providers/utils/fireconfig.js",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [

@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/app/providers/hooks/useAuth"
+import { useAuth } from "@tern-secure/nextjs";
+//import { useAuth } from "@/app/providers/hooks/useAuth"
 
 
 import type { UserStatus, TernSecureUser} from "@/app/providers/utils/types"

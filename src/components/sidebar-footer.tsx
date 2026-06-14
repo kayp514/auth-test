@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronUp, LogOut } from "lucide-react"
 import { SignOutLink } from "@/app/providers/components/sign-out-link-construct-v2"
-import { useAuth } from "@/app/providers/hooks/useAuth"
+//import { useAuth } from "@/app/providers/hooks/useAuth"
+import { useAuth } from "@tern-secure/nextjs";
 import { usePresence } from "@/app/providers/hooks/usePresence"
 import type { PresenceUpdate, UserStatus } from "@/app/providers/utils/socket"
 

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-//import { TernSecureProvider } from "./providers/TernSecureProvider";
-import { TernSecureProvider, UserButton } from "@tern-secure/nextjs";
-//import { SignOut } from "./providers/components/sign-out-construct-v2";
+import { TernSecureProvider } from "@tern-secure/nextjs";
+import { ThemeProvider } from "@/components/theme-provider";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -35,12 +35,18 @@ export default function RootLayout({
             siteKey: "6LfzGRgsAAAAAGEvbwbcLgT4IHWmuWv4kEDRA5hi",
             isTokenAutoRefreshEnabled: true,
           }}
-          ternUIUrl="https://cdn.jsdelivr.net/npm/@tern-secure/auth@1.1.0-canary.v20251207162402/dist/ternsecure.browser.js"
+          ternUIUrl="https://cdn.jsdelivr.net/npm/@tern-secure/auth@1.1.0-canary.v20260103004539/dist/ternsecure.browser.js"
           persistence="browserCookie"
           requiresVerification={false}
         >
-          {children}
-          <UserButton />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
         </TernSecureProvider>
       </body>
     </html>

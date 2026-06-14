@@ -1,7 +1,7 @@
 {
   "name": "auth-test",
   "version": "1.0.0",
-  "packageManager": "npm@10.9.0",
+  "packageManager": "npm@11.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -20,7 +20,7 @@
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-separator": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.1",
-    "@tern-secure/nextjs": "^5.2.0-canary.v20251207162402",
+    "@tern-secure/nextjs": "^5.2.0-canary.v20260103004539",
     "@upstash/redis": "^1.35.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

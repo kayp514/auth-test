@@ -1,22 +1,23 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  //compiler: {
-  //  removeConsole: process.env.NODE_ENV === 'production',
-  //},
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
 
   async rewrites() {
     return [
       {
-        source: '/__/auth/:path*',
-        destination: 'https://dev-coffeeconnect-v1.firebaseapp.com/__/auth/:path*',
+        source: "/__/auth/:path*",
+        destination:
+          "https://dev-coffeeconnect-v1.firebaseapp.com/__/auth/:path*",
       },
       {
-        source: '/__/firebase/:path*',
-        destination: 'https://dev-coffeeconnect-v1.firebaseapp.com/__/firebase/:path*',
+        source: "/__/firebase/:path*",
+        destination:
+          "https://dev-coffeeconnect-v1.firebaseapp.com/__/firebase/:path*",
       },
-    ]
+    ];
   },
-}
+};
 
 export default nextConfig;
